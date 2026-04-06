@@ -45,12 +45,14 @@ Scraper (7am + 7pm EST via APScheduler)
 
 ## Data Sources
 
-### Tier 1 — Direct APIs (no browser)
+### Tier 1 — Direct APIs (no browser, instant, most reliable)
 
 | Source | Method | Purpose |
 |--------|--------|---------|
 | Freddie Mac PMMS | urllib → CSV | National benchmark (30yr + 15yr) |
 | Mortgage News Daily | urllib → HTML | Real-time national benchmark |
+| PennyMac | REST JSON (`quote.pennymac.com/api/v1/rate-sheet/stored/*`) | Top 5 servicer — conv, FHA, VA, jumbo rates |
+| Citizens Bank | Static JSON (`citizensbank.com/assets/CB_resources/json/rates/Mortgage.json`) | Regional bank — regionalized rates by state |
 
 ### Tier 2 — Stealth Browser (patchright)
 
@@ -70,9 +72,7 @@ Scraper (7am + 7pm EST via APScheduler)
 | 12 | PNC | Top 10 Bank | Akamai | Form fill + intercept XHR response |
 | 13 | LoanDepot | Online Lender | reCAPTCHA v3 | Stealth browser may pass score check |
 | 14 | Flagstar/NYCB | Large Servicer | Cloudflare | Form fill via patchright |
-| 15 | PennyMac | Top 5 Servicer | TBD | pennymac.com/rates — awaiting research |
-| 16 | USAA | Military CU | TBD | VA loan specialist — awaiting research |
-| 17 | Citizens Bank | Regional Bank | TBD | citizensbank.com — awaiting research |
+| 15 | USAA | Military CU | Akamai (heavy) | VA loan specialist, high difficulty |
 
 ### Researched and Skipped
 
@@ -524,11 +524,11 @@ mortgage-rates-mcp/
 │       ├── pnc.py              — Akamai, form fill
 │       ├── loandepot.py        — reCAPTCHA v3, Angular
 │       ├── flagstar.py         — Cloudflare, form fill
-│       ├── pennymac.py         — TBD
-│       ├── usaa.py             — TBD
-│       ├── citizens.py         — TBD
-│       ├── freddie_mac.py      — Tier 1, no browser
-│       └── mnd.py              — Tier 1, no browser
+│       ├── usaa.py             — Akamai heavy, stealth browser
+│       ├── pennymac.py         — Tier 1, REST JSON API (no browser)
+│       ├── citizens.py         — Tier 1, static JSON file (no browser)
+│       ├── freddie_mac.py      — Tier 1, CSV endpoint (no browser)
+│       └── mnd.py              — Tier 1, HTML parsing (no browser)
 ├── mcp/
 │   ├── pyproject.toml
 │   └── src/mortgage_rates_mcp/
