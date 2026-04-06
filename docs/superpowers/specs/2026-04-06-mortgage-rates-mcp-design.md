@@ -54,18 +54,35 @@ Scraper (7am + 7pm EST via APScheduler)
 
 ### Tier 2 — Stealth Browser (patchright)
 
-| # | Lender | Type |
-|---|--------|------|
-| 1 | Bank of America | Big 4 Bank |
-| 2 | Wells Fargo | Big 4 Bank |
-| 3 | Chase | Big 4 Bank |
-| 4 | Citi | Big 4 Bank |
-| 5 | Navy Federal CU | Credit Union |
-| 6 | SoFi | Online Lender |
-| 7 | US Bank | National Bank |
-| 8 | Guaranteed Rate | Online Lender |
-| 9 | Truist | National Bank |
-| 10 | Mr. Cooper | Largest Servicer |
+| # | Lender | Type | Anti-Bot | Notes |
+|---|--------|------|----------|-------|
+| 1 | Bank of America | Big 4 Bank | None | Promo URL, reliable |
+| 2 | Wells Fargo | Big 4 Bank | Minimal | Standard scrape |
+| 3 | Chase | Big 4 Bank | Akamai | Use AEM endpoint for simpler DOM |
+| 4 | Citi | Big 4 Bank | Minimal | Standard scrape |
+| 5 | Navy Federal CU | Credit Union | Minimal | Standard scrape |
+| 6 | SoFi | Online Lender | Minimal | Standard scrape |
+| 7 | US Bank | National Bank | Minimal | Standard scrape |
+| 8 | Guaranteed Rate | Online Lender | Minimal | Standard scrape |
+| 9 | Truist | National Bank | Minimal | Standard scrape |
+| 10 | Mr. Cooper | Largest Servicer | Minimal | Custom Rate/APR pattern |
+| 11 | Rocket Mortgage | #1 Retail Lender | Akamai | SSR page, rates in initial HTML |
+| 12 | PNC | Top 10 Bank | Akamai | Form fill + intercept XHR response |
+| 13 | LoanDepot | Online Lender | reCAPTCHA v3 | Stealth browser may pass score check |
+| 14 | Flagstar/NYCB | Large Servicer | Cloudflare | Form fill via patchright |
+| 15 | PennyMac | Top 5 Servicer | TBD | pennymac.com/rates — awaiting research |
+| 16 | USAA | Military CU | TBD | VA loan specialist — awaiting research |
+| 17 | Citizens Bank | Regional Bank | TBD | citizensbank.com — awaiting research |
+
+### Researched and Skipped
+
+| Lender | Reason |
+|--------|--------|
+| TD Bank | No public rates — quote-only |
+| Better.com | No public rates — application funnel only |
+| Freedom Mortgage | No public rates — lead gen page only |
+| UBS | Private banking — rates negotiated per client |
+| Westlake Financial | Auto lender — no mortgage products |
 
 ### Products Tracked
 
@@ -246,7 +263,7 @@ DELETE /api/v1/alerts/:id                   — remove alert
 
 ---
 
-## MCP Tools (11)
+## MCP Tools (12)
 
 ### 1. `get_rates`
 All current rates by product, optional ZIP code filter.
@@ -327,6 +344,50 @@ Input:  loan_amount (required), from_lender (required), to_lender (required),
 Output: Monthly savings, annual savings, total savings over loan life,
         breakeven months if refinancing
 ```
+
+### 12. `get_recommendation`
+AI-powered ranked recommendation based on borrower profile.
+```
+Input:  loan_amount (required), credit_score (optional), down_payment_pct (optional),
+        property_type (optional: "single_family", "condo", "townhouse", "multi_family"),
+        loan_purpose (optional: "purchase", "refinance"), product (optional)
+Output: Ranked list of top 3-5 lender+product combos with:
+        - monthly payment, total cost, rate, APR
+        - "why" explanation for each recommendation
+        - tradeoffs vs other options
+        - estimated savings vs average market rate
+        - disclaimer
+```
+
+---
+
+## AI Discovery
+
+### llms.txt
+
+A structured text file at the domain root (`/llms.txt`) for AI agent discovery. Contains:
+- Server name and description
+- Available tools with input/output schemas
+- Authentication instructions
+- Rate limits and pricing
+- Data freshness guarantees
+- Disclaimer
+
+This follows the emerging `llms.txt` standard for AI-discoverable services.
+
+---
+
+## MCP Client Compatibility
+
+The MCP package uses stdio transport and works with ALL MCP-compatible clients:
+- Claude Desktop / Claude Code (Anthropic)
+- ChatGPT Desktop (OpenAI)
+- Cursor
+- Windsurf
+- VS Code Copilot
+- Any future MCP-compatible client
+
+README documents setup instructions for each major client.
 
 ---
 
@@ -459,13 +520,20 @@ mortgage-rates-mcp/
 │       ├── guaranteed_rate.py
 │       ├── truist.py
 │       ├── mr_cooper.py
+│       ├── rocket_mortgage.py  — Akamai, SSR page
+│       ├── pnc.py              — Akamai, form fill
+│       ├── loandepot.py        — reCAPTCHA v3, Angular
+│       ├── flagstar.py         — Cloudflare, form fill
+│       ├── pennymac.py         — TBD
+│       ├── usaa.py             — TBD
+│       ├── citizens.py         — TBD
 │       ├── freddie_mac.py      — Tier 1, no browser
 │       └── mnd.py              — Tier 1, no browser
 ├── mcp/
 │   ├── pyproject.toml
 │   └── src/mortgage_rates_mcp/
 │       ├── __init__.py
-│       └── server.py           — 11 MCP tool definitions
+│       └── server.py           — 12 MCP tool definitions
 ├── scripts/
 │   ├── create_database.py      — DB init
 │   └── create_admin.py         — create admin user + API key
@@ -505,7 +573,6 @@ mortgage-rates-mcp/
 
 ## Future Considerations (not in V1 but designed for)
 
-- Additional lenders (Rocket Mortgage, PNC, LoanDepot — currently too anti-bot)
 - SMS delivery for rate alerts (Twilio integration)
 - White-label rate sheets with broker logo upload
 - Credit score tiers (rates vary by credit score)
@@ -513,3 +580,7 @@ mortgage-rates-mcp/
 - Refinance-specific rates vs purchase rates
 - Own domain + Cloudflare tunnel
 - Broker dashboard (web UI for managing alerts, viewing history)
+- Embeddable widget (`<script>` tag for broker websites)
+- Discord bot for rate queries
+- Credit union coverage via RateAPI partnership or own scraping
+- Closing cost breakdown / fee itemization where available
