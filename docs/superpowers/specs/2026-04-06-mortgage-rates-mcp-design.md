@@ -366,14 +366,11 @@ Content:
 
 ### Account Onboarding
 
-**V1 (launch):**
-- CLI script `create_admin.py` to create admin account + generate first API key
-- Admin manually generates `mort_*` keys for brokers they're pitching — invite-only, controlled rollout
-- No self-service signup — keeps it tight while validating the product
-
-**Later (with domain):**
-- Self-service signup page with email verification
-- Same registration flow pattern as the betting analyzer
+- **Open registration** — anyone can sign up and get a `mort_*` API key immediately
+- CLI script `create_admin.py` for initial admin account setup
+- `/register` endpoint — email + password, instant account creation, API key generated on signup
+- No invite codes, no approval gates
+- Admin role for Sean — unlimited requests, manual scrape triggers
 
 ---
 
@@ -515,5 +512,4 @@ mortgage-rates-mcp/
 - Jumbo loan rates
 - Refinance-specific rates vs purchase rates
 - Own domain + Cloudflare tunnel
-- Self-service signup page with email verification
 - Broker dashboard (web UI for managing alerts, viewing history)
