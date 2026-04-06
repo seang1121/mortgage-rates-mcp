@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a full-stack mortgage rate intelligence platform with 11 MCP tools, 12 lender-specific extractors, Flask API, and PyPI package.
+**Goal:** Build a full-stack mortgage rate intelligence platform with 12 MCP tools, 19 lender extractors + 2 benchmarks, Flask API, and PyPI package. Compatible with Claude, ChatGPT, Cursor, Windsurf, and all MCP clients.
 
-**Architecture:** Standalone Flask backend on port 5001 with SQLite storage, patchright-based scraper running 2x daily (7am/7pm EST), thin MCP proxy package on PyPI. Independent auth system with `mort_*` API keys and open registration.
+**Architecture:** Standalone Flask backend on port 5001 with SQLite storage, patchright-based scraper running 2x daily (7am/7pm EST), thin MCP proxy package on PyPI. Independent auth system with `mort_*` API keys and open registration. Three-tier data fetching: Tier 1 (direct API, 4 sources), Tier 2 (easy browser, 9 lenders), Tier 3 (heavy anti-bot, 6 lenders).
 
 **Tech Stack:** Python 3.14, Flask, APScheduler, patchright (stealth Chromium), Pillow, SQLite, mcp>=1.0.0, werkzeug
 
@@ -26,27 +26,35 @@
 | `scraper.py` | Orchestrator — launches browser, runs extractors, stores results |
 | `scheduler.py` | APScheduler 7am/7pm EST cron jobs |
 | `calculator.py` | Payment math, scenario comparison, savings estimation |
+| `recommender.py` | Ranked recommendation engine — borrower profile → top picks with explanations |
 | `rate_sheet.py` | Pillow-based PNG rate card generator |
 | `validators.py` | Rate sanity bounds, benchmark cross-ref, staleness detection |
 | `notifications.py` | Alert dispatch — Discord webhook + email |
 
 ### Extractors (`backend/extractors/`)
 
-| File | Responsibility |
-|------|---------------|
-| `base.py` | `BaseLenderExtractor` ABC + `RateResult` dataclass |
-| `freddie_mac.py` | Tier 1 — CSV via urllib, no browser |
-| `mnd.py` | Tier 1 — HTML via urllib, no browser |
-| `bank_of_america.py` | Tier 2 — patchright, promo URL |
-| `wells_fargo.py` | Tier 2 — patchright |
-| `chase.py` | Tier 2 — patchright + CDP fallback |
-| `citi.py` | Tier 2 — patchright |
-| `navy_federal.py` | Tier 2 — patchright |
-| `sofi.py` | Tier 2 — patchright |
-| `us_bank.py` | Tier 2 — patchright |
-| `guaranteed_rate.py` | Tier 2 — patchright |
-| `truist.py` | Tier 2 — patchright |
-| `mr_cooper.py` | Tier 2 — patchright, custom Rate/APR pattern |
+| File | Tier | Responsibility |
+|------|------|---------------|
+| `base.py` | — | `BaseLenderExtractor` ABC + `RateResult` dataclass |
+| `freddie_mac.py` | 1 | CSV via urllib, no browser (benchmark) |
+| `mnd.py` | 1 | HTML via urllib, no browser (benchmark) |
+| `pennymac.py` | 1 | REST JSON API at `quote.pennymac.com`, no browser |
+| `citizens.py` | 1 | Static JSON file at `citizensbank.com/assets/...`, no browser |
+| `bank_of_america.py` | 2 | patchright, promo URL |
+| `wells_fargo.py` | 2 | patchright, standard scrape |
+| `citi.py` | 2 | patchright, standard scrape |
+| `navy_federal.py` | 2 | patchright, standard scrape |
+| `sofi.py` | 2 | patchright, standard scrape |
+| `us_bank.py` | 2 | patchright, standard scrape |
+| `guaranteed_rate.py` | 2 | patchright, standard scrape |
+| `truist.py` | 2 | patchright, standard scrape |
+| `mr_cooper.py` | 2 | patchright, custom Rate/APR pattern |
+| `chase.py` | 3 | Akamai — use AEM endpoint, simpler DOM, patchright + CDP fallback |
+| `rocket_mortgage.py` | 3 | Akamai — SSR page, rates in initial HTML, patchright stealth |
+| `pnc.py` | 3 | Akamai — form fill (home value, down payment, credit, ZIP) + intercept XHR |
+| `usaa.py` | 3 | Akamai heavy — patchright stealth, may need proxy rotation |
+| `flagstar.py` | 3 | Cloudflare — form fill via patchright, Turnstile challenge |
+| `loandepot.py` | 3 | reCAPTCHA v3 — Angular SPA, stealth browser may pass score check |
 
 ### MCP Package (`mcp/`)
 
@@ -54,7 +62,7 @@
 |------|---------------|
 | `pyproject.toml` | PyPI package config |
 | `src/mortgage_rates_mcp/__init__.py` | Package init, exports `mcp` instance |
-| `src/mortgage_rates_mcp/server.py` | 11 MCP tool definitions, API client helpers |
+| `src/mortgage_rates_mcp/server.py` | 12 MCP tool definitions, API client helpers |
 
 ### Scripts (`scripts/`)
 
@@ -70,9 +78,10 @@
 | `.env.example` | Required env vars template |
 | `.gitignore` | Standard ignores + screenshots/, *.db, .env |
 | `CLAUDE.md` | Project instructions for AI agents |
-| `README.md` | User-facing docs |
+| `README.md` | User-facing docs (multi-client: Claude, ChatGPT, Cursor, Windsurf, VS Code) |
 | `LICENSE` | MIT |
 | `requirements.txt` | Backend Python dependencies |
+| `llms.txt` | AI agent discovery — tools, auth, data freshness, disclaimer |
 
 ---
 
@@ -760,11 +769,13 @@ git commit -m "feat: base extractor, RateResult dataclass, validation pipeline"
 
 ---
 
-## Task 5: Tier 1 Extractors (Freddie Mac + MND)
+## Task 5: Tier 1 Extractors (Freddie Mac + MND + PennyMac + Citizens)
 
 **Files:**
 - Create: `backend/extractors/freddie_mac.py`
 - Create: `backend/extractors/mnd.py`
+- Create: `backend/extractors/pennymac.py`
+- Create: `backend/extractors/citizens.py`
 
 - [ ] **Step 1: Create freddie_mac.py**
 
@@ -848,39 +859,182 @@ class MNDExtractor(BaseLenderExtractor):
         return self.fetch()
 ```
 
-- [ ] **Step 3: Test Tier 1 extractors**
+- [ ] **Step 3: Create pennymac.py**
+
+PennyMac has a clean public REST API — no browser, no auth needed.
+
+```python
+"""PennyMac — REST JSON API. No browser needed."""
+import json
+import ssl
+import urllib.request
+from backend.extractors.base import BaseLenderExtractor, RateResult
+
+
+class PennyMacExtractor(BaseLenderExtractor):
+    name = "PennyMac"
+    url = "https://quote.pennymac.com/api/v1/rate-sheet/stored/conventional-home-loans"
+    requires_browser = False
+
+    ENDPOINTS = {
+        "conventional": "https://quote.pennymac.com/api/v1/rate-sheet/stored/conventional-home-loans",
+        "fha": "https://quote.pennymac.com/api/v1/rate-sheet/stored/fha-home-loans",
+        "va": "https://quote.pennymac.com/api/v1/rate-sheet/stored/va-purchase",
+        "jumbo": "https://quote.pennymac.com/api/v1/rate-sheet/stored/jumbo-loans",
+    }
+
+    # Map PennyMac product names to our standard product keys
+    PRODUCT_MAP = {
+        "Conventional 30 Year Fixed": "30yr",
+        "Conventional 15 Year Fixed": "15yr",
+        "FHA 30 Year Fixed": "FHA_30yr",
+        "VA 30 Year Fixed": "VA_30yr",
+    }
+
+    def fetch(self) -> list[RateResult]:
+        """Fetch rates from all PennyMac endpoints."""
+        results = []
+        ctx = ssl.create_default_context()
+        for endpoint_url in self.ENDPOINTS.values():
+            try:
+                req = urllib.request.Request(endpoint_url, headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json",
+                })
+                with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
+                    data = json.loads(r.read().decode())
+                for rate_item in data.get("bestRates", []):
+                    product = self._map_product(rate_item.get("name", ""))
+                    if product:
+                        results.append(RateResult(
+                            lender=self.name,
+                            product=product,
+                            rate=float(rate_item["rate"]),
+                            apr=float(rate_item.get("apr")) if rate_item.get("apr") else None,
+                        ))
+            except Exception:
+                continue
+        return results
+
+    def _map_product(self, name: str) -> str | None:
+        """Map PennyMac product name to standard key."""
+        for pm_name, key in self.PRODUCT_MAP.items():
+            if pm_name.lower() in name.lower():
+                return key
+        if "arm" in name.lower() or "adjustable" in name.lower():
+            return "ARM"
+        return None
+
+    async def scrape(self, browser, zip_code: str) -> list[RateResult]:
+        return self.fetch()
+```
+
+- [ ] **Step 4: Create citizens.py**
+
+Citizens Bank publishes a static JSON file — no browser, no auth.
+
+```python
+"""Citizens Bank — static JSON file. No browser needed. Rates regionalized by state."""
+import json
+import ssl
+import urllib.request
+from backend.extractors.base import BaseLenderExtractor, RateResult
+
+
+class CitizensExtractor(BaseLenderExtractor):
+    name = "Citizens Bank"
+    url = "https://www.citizensbank.com/assets/CB_resources/json/rates/Mortgage.json"
+    requires_browser = False
+
+    PRODUCT_MAP = {
+        "30 Year Fixed Rate": "30yr",
+        "20 Year Fixed Rate": "30yr",  # fallback if no 30yr
+        "15 Year Fixed Rate": "15yr",
+        "10 Year Fixed Rate": "15yr",  # fallback
+    }
+
+    def fetch(self, region: str = "RI") -> list[RateResult]:
+        """Fetch rates from static JSON. Region = state code (e.g., 'RI', 'OH', 'CT')."""
+        try:
+            ctx = ssl.create_default_context()
+            req = urllib.request.Request(self.url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
+                data = json.loads(r.read().decode())
+
+            results = []
+            for brand_entry in data:
+                for region_data in brand_entry.get("BrandData", []):
+                    if region_data.get("RegionCode") != region:
+                        continue
+                    for group_wrapper in region_data.get("RegionData", {}).get("GROUPS", []):
+                        for group in group_wrapper.get("GROUP", []):
+                            group_name = group.get("NAME", "")
+                            if "Purchase" not in group_name:
+                                continue
+                            for product in group.get("PRODUCT", []):
+                                descr = product.get("Descr", "")
+                                std_product = self._map_product(descr)
+                                if not std_product:
+                                    continue
+                                rate_str = product.get("RATE", "").replace("%", "")
+                                apr_str = product.get("APR", "").replace("%", "")
+                                try:
+                                    results.append(RateResult(
+                                        lender=self.name,
+                                        product=std_product,
+                                        rate=float(rate_str),
+                                        apr=float(apr_str) if apr_str else None,
+                                    ))
+                                except (ValueError, TypeError):
+                                    continue
+            return results
+        except Exception:
+            return []
+
+    def _map_product(self, descr: str) -> str | None:
+        for pattern, key in self.PRODUCT_MAP.items():
+            if pattern.lower() in descr.lower():
+                return key
+        if "arm" in descr.lower() or "adjustable" in descr.lower():
+            return "ARM"
+        return None
+
+    async def scrape(self, browser, zip_code: str) -> list[RateResult]:
+        return self.fetch()
+```
+
+- [ ] **Step 5: Test all 4 Tier 1 extractors**
 
 ```bash
 python -c "
 from backend.extractors.freddie_mac import FreddieMacExtractor
 from backend.extractors.mnd import MNDExtractor
+from backend.extractors.pennymac import PennyMacExtractor
+from backend.extractors.citizens import CitizensExtractor
 
-fm = FreddieMacExtractor()
-results = fm.fetch()
-print(f'Freddie Mac: {len(results)} rates')
-for r in results:
-    print(f'  {r.product}: {r.rate}%')
-
-mnd = MNDExtractor()
-results = mnd.fetch()
-print(f'MND: {len(results)} rates')
-for r in results:
-    print(f'  {r.product}: {r.rate}%')
+for ExtClass in [FreddieMacExtractor, MNDExtractor, PennyMacExtractor, CitizensExtractor]:
+    ext = ExtClass()
+    results = ext.fetch() if hasattr(ext, 'fetch') else []
+    print(f'{ext.name}: {len(results)} rates')
+    for r in results:
+        apr_str = f' ({r.apr}% APR)' if r.apr else ''
+        print(f'  {r.product}: {r.rate}%{apr_str}')
+    print()
 "
 ```
 
-Expected: Both return at least 1 rate (30yr).
+Expected: All 4 return rates. PennyMac should return conv + FHA + VA + jumbo. Citizens should return 30yr + 15yr + ARM.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add backend/extractors/freddie_mac.py backend/extractors/mnd.py
-git commit -m "feat: Tier 1 extractors — Freddie Mac CSV + MND HTML"
+git add backend/extractors/freddie_mac.py backend/extractors/mnd.py backend/extractors/pennymac.py backend/extractors/citizens.py
+git commit -m "feat: Tier 1 extractors — Freddie Mac, MND, PennyMac API, Citizens JSON"
 ```
 
 ---
 
-## Task 6: Tier 2 Extractors (10 Browser Lenders)
+## Task 6: Tier 2 + Tier 3 Browser Extractors (15 Lenders)
 
 **Files:**
 - Create: `backend/extractors/bank_of_america.py`
@@ -893,6 +1047,11 @@ git commit -m "feat: Tier 1 extractors — Freddie Mac CSV + MND HTML"
 - Create: `backend/extractors/guaranteed_rate.py`
 - Create: `backend/extractors/truist.py`
 - Create: `backend/extractors/mr_cooper.py`
+- Create: `backend/extractors/rocket_mortgage.py`
+- Create: `backend/extractors/pnc.py`
+- Create: `backend/extractors/usaa.py`
+- Create: `backend/extractors/flagstar.py`
+- Create: `backend/extractors/loandepot.py`
 
 Each extractor inherits `BaseLenderExtractor` and sets `name`, `url`, and optionally overrides `extract()` or `scrape()` for lender-specific logic.
 
@@ -974,9 +1133,9 @@ class MrCooperExtractor(BaseLenderExtractor):
     wait_ms = 12000
 ```
 
-Create the remaining 7 (`wells_fargo.py`, `citi.py`, `navy_federal.py`, `sofi.py`, `us_bank.py`, `guaranteed_rate.py`, `truist.py`) following the same pattern — set `name`, `url`, and `wait_ms`. Use default `scrape()` from base unless lender-specific interaction is needed.
+Create the remaining Tier 2 lenders (`wells_fargo.py`, `citi.py`, `navy_federal.py`, `sofi.py`, `us_bank.py`, `guaranteed_rate.py`, `truist.py`) following the same pattern — set `name`, `url`, and `wait_ms`. Use default `scrape()` from base.
 
-URLs:
+Tier 2 URLs:
 - Wells Fargo: `https://www.wellsfargo.com/mortgage/rates/`
 - Citi: `https://www.citi.com/mortgage/purchase-rates`
 - Navy Federal CU: `https://www.navyfederal.org/loans-cards/mortgage/mortgage-rates/`
@@ -985,13 +1144,159 @@ URLs:
 - Guaranteed Rate: `https://www.rate.com/mortgage-rates`
 - Truist: `https://www.truist.com/mortgage/current-mortgage-rates`
 
-- [ ] **Step 2: Update extractors/__init__.py with registry**
+- [ ] **Step 2: Create Tier 3 extractors (heavy anti-bot)**
+
+**`rocket_mortgage.py`** — Akamai, SSR page with rates in initial HTML:
+```python
+"""Rocket Mortgage — #1 retail lender. Akamai protection, SSR page."""
+from backend.extractors.base import BaseLenderExtractor
+
+
+class RocketMortgageExtractor(BaseLenderExtractor):
+    name = "Rocket Mortgage"
+    url = "https://www.rocketmortgage.com/mortgage-rates"
+    wait_ms = 15000  # extra time for Akamai sensor + JS hydration
+```
+
+**`pnc.py`** — Akamai, rates behind interactive form:
+```python
+"""PNC Bank — Akamai protection, rates require form fill."""
+from backend.extractors.base import BaseLenderExtractor, RateResult
+
+
+class PNCExtractor(BaseLenderExtractor):
+    name = "PNC"
+    url = "https://www.pnc.com/en/personal-banking/borrowing/home-lending/mortgage-loans/mortgage-rates.html"
+    wait_ms = 15000
+
+    async def scrape(self, browser, zip_code: str) -> list[RateResult]:
+        """Fill rate form with default values and extract results."""
+        try:
+            ctx = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                locale="en-US",
+            )
+            page = await ctx.new_page()
+            await page.goto(self.url, timeout=30000, wait_until="domcontentloaded")
+            await page.wait_for_timeout(self.wait_ms)
+
+            # Fill form fields if present
+            for field_sel, value in [
+                ('input[name*="homeValue" i], input[id*="homeValue" i]', '400000'),
+                ('input[name*="downPayment" i], input[id*="downPayment" i]', '80000'),
+                ('input[name*="zip" i], input[id*="zip" i]', zip_code),
+            ]:
+                el = await page.query_selector(field_sel)
+                if el:
+                    await el.fill(value)
+                    await page.wait_for_timeout(300)
+
+            # Try to submit / click "See rates"
+            for btn_sel in ['button:has-text("See")', 'button:has-text("Get")', 'button[type="submit"]']:
+                btn = await page.query_selector(btn_sel)
+                if btn:
+                    await btn.click()
+                    await page.wait_for_timeout(8000)
+                    break
+
+            text = await page.inner_text("body")
+            await ctx.close()
+            return self.extract(text)
+        except Exception:
+            try:
+                await ctx.close()
+            except Exception:
+                pass
+            return []
+```
+
+**`usaa.py`** — Heavy Akamai, needs stealth:
+```python
+"""USAA — Heavy Akamai Bot Manager. VA loan specialist."""
+from backend.extractors.base import BaseLenderExtractor
+
+
+class USAAExtractor(BaseLenderExtractor):
+    name = "USAA"
+    url = "https://www.usaa.com/bank/mortgage-rates"
+    wait_ms = 20000  # extra time for heavy Akamai sensor validation
+```
+
+**`flagstar.py`** — Cloudflare, form-gated:
+```python
+"""Flagstar Bank (NYCB) — Cloudflare protection, rates behind form."""
+from backend.extractors.base import BaseLenderExtractor, RateResult
+
+
+class FlagstarExtractor(BaseLenderExtractor):
+    name = "Flagstar"
+    url = "https://www.flagstar.com/personal/borrow/home-loans/mortgage-rates.html"
+    wait_ms = 15000
+
+    async def scrape(self, browser, zip_code: str) -> list[RateResult]:
+        """Fill rate form and extract results after Cloudflare challenge."""
+        try:
+            ctx = await browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                locale="en-US",
+            )
+            page = await ctx.new_page()
+            await page.goto(self.url, timeout=30000, wait_until="domcontentloaded")
+            await page.wait_for_timeout(self.wait_ms)
+
+            # Fill purchase form fields
+            for field_sel, value in [
+                ('input[name*="purchasePrice" i]', '400000'),
+                ('input[name*="downPayment" i]', '80000'),
+                ('input[name*="zip" i], input[name*="Zipcode" i]', zip_code),
+            ]:
+                el = await page.query_selector(field_sel)
+                if el:
+                    await el.fill(value)
+                    await page.wait_for_timeout(300)
+
+            # Submit form
+            for btn_sel in ['button:has-text("Submit")', 'button:has-text("See")', 'input[type="submit"]']:
+                btn = await page.query_selector(btn_sel)
+                if btn:
+                    await btn.click()
+                    await page.wait_for_timeout(8000)
+                    break
+
+            text = await page.inner_text("body")
+            await ctx.close()
+            return self.extract(text)
+        except Exception:
+            try:
+                await ctx.close()
+            except Exception:
+                pass
+            return []
+```
+
+**`loandepot.py`** — reCAPTCHA v3, Angular SPA:
+```python
+"""LoanDepot — reCAPTCHA v3 + Angular SPA. Stealth browser may pass score."""
+from backend.extractors.base import BaseLenderExtractor
+
+
+class LoanDepotExtractor(BaseLenderExtractor):
+    name = "LoanDepot"
+    url = "https://www.loandepot.com/mortgage-rates"
+    wait_ms = 15000  # extra time for Angular hydration + reCAPTCHA
+```
+
+- [ ] **Step 3: Update extractors/__init__.py with full registry**
 
 ```python
-"""Lender extractor registry."""
+"""Lender extractor registry — 19 lenders + 2 benchmarks."""
 from backend.extractors.base import BaseLenderExtractor, RateResult
 from backend.extractors.freddie_mac import FreddieMacExtractor
 from backend.extractors.mnd import MNDExtractor
+from backend.extractors.pennymac import PennyMacExtractor
+from backend.extractors.citizens import CitizensExtractor
 from backend.extractors.bank_of_america import BankOfAmericaExtractor
 from backend.extractors.wells_fargo import WellsFargoExtractor
 from backend.extractors.chase import ChaseExtractor
@@ -1002,28 +1307,42 @@ from backend.extractors.us_bank import USBankExtractor
 from backend.extractors.guaranteed_rate import GuaranteedRateExtractor
 from backend.extractors.truist import TruistExtractor
 from backend.extractors.mr_cooper import MrCooperExtractor
+from backend.extractors.rocket_mortgage import RocketMortgageExtractor
+from backend.extractors.pnc import PNCExtractor
+from backend.extractors.usaa import USAAExtractor
+from backend.extractors.flagstar import FlagstarExtractor
+from backend.extractors.loandepot import LoanDepotExtractor
 
-# Tier 1 — no browser needed
-TIER1_EXTRACTORS = [FreddieMacExtractor(), MNDExtractor()]
-
-# Tier 2 — stealth browser required
-TIER2_EXTRACTORS = [
-    BankOfAmericaExtractor(), WellsFargoExtractor(), ChaseExtractor(),
-    CitiExtractor(), NavyFederalExtractor(), SoFiExtractor(),
-    USBankExtractor(), GuaranteedRateExtractor(), TruistExtractor(),
-    MrCooperExtractor(),
+# Tier 1 — no browser needed (direct API/JSON)
+TIER1_EXTRACTORS = [
+    FreddieMacExtractor(), MNDExtractor(),
+    PennyMacExtractor(), CitizensExtractor(),
 ]
 
-ALL_EXTRACTORS = TIER1_EXTRACTORS + TIER2_EXTRACTORS
+# Tier 2 — stealth browser, low protection
+TIER2_EXTRACTORS = [
+    BankOfAmericaExtractor(), WellsFargoExtractor(), CitiExtractor(),
+    NavyFederalExtractor(), SoFiExtractor(), USBankExtractor(),
+    GuaranteedRateExtractor(), TruistExtractor(), MrCooperExtractor(),
+]
 
-__all__ = ['BaseLenderExtractor', 'RateResult', 'TIER1_EXTRACTORS', 'TIER2_EXTRACTORS', 'ALL_EXTRACTORS']
+# Tier 3 — stealth browser, heavy anti-bot
+TIER3_EXTRACTORS = [
+    ChaseExtractor(), RocketMortgageExtractor(), PNCExtractor(),
+    USAAExtractor(), FlagstarExtractor(), LoanDepotExtractor(),
+]
+
+ALL_EXTRACTORS = TIER1_EXTRACTORS + TIER2_EXTRACTORS + TIER3_EXTRACTORS
+
+__all__ = ['BaseLenderExtractor', 'RateResult',
+           'TIER1_EXTRACTORS', 'TIER2_EXTRACTORS', 'TIER3_EXTRACTORS', 'ALL_EXTRACTORS']
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add backend/extractors/
-git commit -m "feat: all 12 lender extractors — 2 Tier 1 (API) + 10 Tier 2 (browser)"
+git commit -m "feat: all 21 extractors — 4 Tier 1 (API) + 9 Tier 2 (easy) + 6 Tier 3 (anti-bot)"
 ```
 
 ---
@@ -1382,11 +1701,109 @@ def estimate_savings(loan_amount: float, from_rate: float, to_rate: float,
     }
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Create backend/recommender.py**
+
+Ranked recommendation engine — takes borrower profile, queries current rates, returns top picks with explanations.
+
+```python
+"""Recommendation engine — ranked picks with explanations for borrower profiles."""
+from backend.database import db
+from backend.calculator import full_calculation
+
+
+def get_recommendation(loan_amount: float, credit_score: int = 740,
+                       down_payment_pct: float = 20, product: str = None,
+                       property_type: str = "single_family",
+                       loan_purpose: str = "purchase") -> dict:
+    """Generate ranked lender recommendations based on borrower profile."""
+
+    # Fetch current non-stale, non-benchmark rates
+    query = """SELECT lender, product, rate, apr, scraped_at
+               FROM rates WHERE stale = 0 AND is_benchmark = 0"""
+    params = []
+    if product:
+        query += " AND product = ?"
+        params.append(product)
+    query += " ORDER BY rate ASC"
+
+    rates = db.query(query, tuple(params))
+    if not rates:
+        return {"recommendations": [], "message": "No rates available. Try again after the next scrape."}
+
+    # Get benchmark average for context
+    benchmarks = db.query(
+        "SELECT product, AVG(rate) as avg_rate FROM rates WHERE is_benchmark = 1 GROUP BY product"
+    )
+    bench_avg = {b['product']: b['avg_rate'] for b in benchmarks}
+
+    # Score and rank
+    recommendations = []
+    seen_lenders = set()
+
+    for r in rates:
+        if r['lender'] in seen_lenders:
+            continue
+        seen_lenders.add(r['lender'])
+
+        calc = full_calculation(loan_amount, r['rate'],
+                                term_years=30 if '30' in r['product'] or r['product'] == 'ARM' else 15,
+                                down_payment_pct=down_payment_pct)
+
+        # Compare to benchmark
+        benchmark = bench_avg.get(r['product'])
+        vs_market = round(r['rate'] - benchmark, 3) if benchmark else None
+
+        # Generate explanation
+        why = _explain(r, calc, vs_market, loan_purpose)
+
+        recommendations.append({
+            "rank": len(recommendations) + 1,
+            "lender": r['lender'],
+            "product": r['product'],
+            "rate": r['rate'],
+            "apr": r['apr'],
+            "monthly_payment": calc['monthly_payment'],
+            "total_interest": calc['total_interest'],
+            "total_cost": calc['total_cost'],
+            "vs_market_avg": f"{vs_market:+.3f}%" if vs_market is not None else None,
+            "why": why,
+            "scraped_at": r['scraped_at'],
+        })
+
+        if len(recommendations) >= 5:
+            break
+
+    return {
+        "recommendations": recommendations,
+        "borrower_profile": {
+            "loan_amount": loan_amount,
+            "credit_score": credit_score,
+            "down_payment_pct": down_payment_pct,
+            "property_type": property_type,
+            "loan_purpose": loan_purpose,
+        },
+        "rates_as_of": recommendations[0]['scraped_at'] if recommendations else None,
+    }
+
+
+def _explain(rate, calc, vs_market, loan_purpose) -> str:
+    """Generate a human-readable explanation for why this lender is recommended."""
+    parts = []
+    if rate.get('apr') and rate['apr'] < rate['rate'] + 0.3:
+        parts.append("Low fees reflected in tight rate-to-APR spread")
+    if vs_market is not None and vs_market < -0.1:
+        parts.append(f"{abs(vs_market):.3f}% below the national average")
+    elif vs_market is not None and vs_market < 0:
+        parts.append("Below the national average")
+    parts.append(f"${calc['monthly_payment']:,.2f}/month on ${calc['loan_amount']:,.0f}")
+    return ". ".join(parts) + "."
+```
+
+- [ ] **Step 3: Commit**
 
 ```bash
-git add backend/calculator.py
-git commit -m "feat: calculator module — payment, scenarios, savings estimation"
+git add backend/calculator.py backend/recommender.py
+git commit -m "feat: calculator + recommendation engine with ranked explanations"
 ```
 
 ---
@@ -1412,6 +1829,7 @@ This is the largest file. Key sections:
 - `GET /api/v1/rates/scenarios` — scenario comparison
 - `GET /api/v1/rates/savings` — savings estimation
 - `POST /api/v1/calculate` — payment calculator
+- `POST /api/v1/recommend` — AI-powered ranked recommendations (uses recommender.py)
 - `POST /api/v1/rate-sheet` — generate PNG (Task 11)
 - `POST /api/v1/alerts` — create alert
 - `GET /api/v1/alerts` — list alerts
@@ -1866,7 +2284,7 @@ build-backend = "hatchling.build"
 [project]
 name = "mortgage-rates-mcp"
 version = "0.1.0"
-description = "MCP server for real-time mortgage rate comparison — 10 lenders, 11 tools, AI-powered rate intelligence for realtors and brokers."
+description = "MCP server for real-time mortgage rate comparison — 19 lenders, 12 tools, AI-powered rate intelligence for realtors and brokers."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -1893,11 +2311,13 @@ __all__ = ["mcp"]
 
 - [ ] **Step 3: Create server.py**
 
-All 11 MCP tools as thin proxies to the backend API. Same pattern as `sports-betting-mcp`: `_api_get()` and `_api_post()` helpers with `X-API-Key` auth.
+All 12 MCP tools as thin proxies to the backend API. Same pattern as `sports-betting-mcp`: `_api_get()` and `_api_post()` helpers with `X-API-Key` auth.
 
 Each tool calls the corresponding `/api/v1/` endpoint and formats the response as a readable string. Every tool description includes the disclaimer note: "Returns publicly advertised rates, not personalized quotes."
 
-Tools: `get_rates`, `get_best_rate`, `compare_lenders`, `get_rate_history`, `get_lender_details`, `get_system_status`, `calculate_payment`, `generate_rate_sheet`, `set_rate_alert`, `compare_scenarios`, `estimate_savings`.
+Tools (12): `get_rates`, `get_best_rate`, `compare_lenders`, `get_rate_history`, `get_lender_details`, `get_system_status`, `calculate_payment`, `generate_rate_sheet`, `set_rate_alert`, `compare_scenarios`, `estimate_savings`, `get_recommendation`.
+
+The `get_recommendation` tool calls `POST /api/v1/recommend` with borrower profile params and returns ranked picks with explanations.
 
 Full implementation following the sports-betting-mcp server.py pattern — `_api_get()`, `_api_post()`, `@mcp.tool()` decorator per tool.
 
@@ -1905,27 +2325,84 @@ Full implementation following the sports-betting-mcp server.py pattern — `_api
 
 ```bash
 git add mcp/
-git commit -m "feat: MCP package — 11 tools, PyPI-ready, thin proxy to backend"
+git commit -m "feat: MCP package — 12 tools, PyPI-ready, multi-client compatible"
 ```
 
 ---
 
-## Task 14: README + Final Wiring
+## Task 14: README + llms.txt + Final Wiring
 
 **Files:**
 - Create: `README.md`
-- Modify: `backend/app.py` (add scheduler startup + dotenv loading)
+- Create: `llms.txt`
+- Modify: `backend/app.py` (add scheduler startup + dotenv loading + llms.txt route)
 
 - [ ] **Step 1: Create README.md**
 
 Cover:
-- What it is (one paragraph)
+- What it is (one paragraph — 19 lenders, 12 tools, AI-native)
 - Quick start (pip install for MCP users, backend setup for self-hosting)
-- All 11 tools with descriptions
-- Lender list
+- **Multi-client setup** — config examples for Claude Desktop, ChatGPT Desktop, Cursor, Windsurf, VS Code
+- All 12 tools with descriptions
+- Full lender list (Tier 1/2/3 breakdown)
 - Schedule (7am/7pm EST)
-- API key acquisition
+- API key acquisition (open registration)
+- Accuracy & validation pipeline description
 - Disclaimer
+- Competitive advantages vs RateAPI/Bankrate/NerdWallet
+
+- [ ] **Step 1b: Create llms.txt**
+
+```text
+# mortgage-rates-mcp
+
+> Real-time mortgage rate comparison across 19 major US lenders + 2 national benchmarks. AI-native MCP server for realtors, brokers, and homebuyers.
+
+## Tools (12)
+
+- get_rates: All current rates by product (30yr, 15yr, ARM, FHA, VA). Optional ZIP filter.
+- get_best_rate: Single best rate for a loan type across all lenders.
+- compare_lenders: Side-by-side comparison of specific lenders.
+- get_rate_history: Trend data up to 90 days with AM/PM tracking.
+- get_lender_details: All products from one specific lender.
+- get_system_status: Health check — last scrape time, lender count, uptime.
+- calculate_payment: Monthly payment, total interest, full amortization breakdown.
+- generate_rate_sheet: Client-ready PNG rate card image.
+- set_rate_alert: Threshold notification when rates drop below target.
+- compare_scenarios: 30yr vs 15yr vs ARM with monthly payments and breakeven.
+- estimate_savings: Savings from switching lenders with refinance breakeven.
+- get_recommendation: AI-ranked top picks based on borrower profile with explanations.
+
+## Authentication
+
+API key required. Prefix: mort_*
+Free tier: 20 requests/day.
+Get key: POST /api/v1/register with email + password.
+
+## Data Freshness
+
+Rates scraped at 7:00 AM and 7:00 PM EST daily.
+4 lenders via direct API (instant, most reliable).
+15 lenders via stealth browser scraping.
+90-day rolling history with AM/PM granularity.
+
+## Lenders (19)
+
+Bank of America, Wells Fargo, Chase, Citi, Navy Federal CU, SoFi, US Bank, Guaranteed Rate, Truist, Mr. Cooper, Rocket Mortgage, PNC, PennyMac, Citizens Bank, USAA, Flagstar, LoanDepot
+
+## Benchmarks (2)
+
+Freddie Mac PMMS (national average), Mortgage News Daily Index
+
+## Disclaimer
+
+Rates shown are publicly advertised rates scraped from lender websites and are not personalized quotes. Not financial advice. Contact lenders directly for official quotes.
+
+## Links
+
+- PyPI: pip install mortgage-rates-mcp
+- GitHub: https://github.com/seang1121/mortgage-rates-mcp
+```
 
 - [ ] **Step 2: Add dotenv loading to app.py**
 
@@ -1937,7 +2414,18 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 ```
 
-- [ ] **Step 3: Add startup block to app.py**
+- [ ] **Step 3: Add llms.txt route to app.py**
+
+```python
+@app.route('/llms.txt')
+def llms_txt():
+    """Serve llms.txt for AI agent discovery."""
+    llms_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'llms.txt')
+    with open(llms_path) as f:
+        return f.read(), 200, {'Content-Type': 'text/plain'}
+```
+
+- [ ] **Step 4: Add startup block to app.py**
 
 ```python
 if __name__ == '__main__':
@@ -1946,7 +2434,7 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.getenv('FLASK_PORT', 5001)), debug=False)
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add README.md backend/app.py
