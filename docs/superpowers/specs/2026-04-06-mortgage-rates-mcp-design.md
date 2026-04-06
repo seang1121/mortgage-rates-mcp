@@ -359,10 +359,79 @@ Content:
 
 - **Independent from betting analyzer** — own users table, own API keys
 - **Key prefix:** `mort_` (e.g., `mort_a3f8b2c1d4e5...`)
-- **Key storage:** bcrypt/scrypt hashed, only prefix stored in plaintext for identification
+- **Key storage:** scrypt hashed, only prefix stored in plaintext for identification
 - **Free tier:** 20 requests/day
 - **Rate limiting:** per API key, resets at midnight EST
 - **Admin role:** unlimited requests, can trigger manual scrapes
+
+### Account Onboarding
+
+**V1 (launch):**
+- CLI script `create_admin.py` to create admin account + generate first API key
+- Admin manually generates `mort_*` keys for brokers they're pitching — invite-only, controlled rollout
+- No self-service signup — keeps it tight while validating the product
+
+**Later (with domain):**
+- Self-service signup page with email verification
+- Same registration flow pattern as the betting analyzer
+
+---
+
+## Alert Delivery System
+
+### Notification Channels (priority order)
+
+1. **Discord webhook** — free, immediate, infra already exists. Default for admin.
+2. **Email (SMTP)** — for brokers. Gmail SMTP or SendGrid free tier (100/day). Triggered post-scrape when a rate crosses a threshold.
+3. **SMS (future)** — Twilio at ~$0.007/msg. Add when broker demand warrants.
+
+### Flow
+
+After each 7am/7pm scrape completes:
+1. Query all active alerts from `rate_alerts` table
+2. Compare new rates against each alert's threshold
+3. For triggered alerts, look up user's `notification_preferences`
+4. Dispatch through configured channel(s)
+5. Update `last_triggered_at` to prevent duplicate notifications
+
+### Database Addition
+
+```sql
+CREATE TABLE notification_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    channel TEXT NOT NULL,           -- 'email', 'discord_webhook', 'sms'
+    destination TEXT NOT NULL,       -- email address, webhook URL, or phone number
+    active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+---
+
+## Compliance & Disclaimers
+
+### Legal Position
+
+We are aggregating **publicly displayed rates** from lender websites. We are NOT originating loans, providing personalized quotes, or acting as a mortgage broker. This is informational aggregation, similar to what Bankrate or NerdWallet does, but without the lead generation.
+
+### Required Disclaimers
+
+**Every API response** includes a `disclaimer` field:
+> "Rates shown are publicly advertised rates scraped from lender websites and are not personalized quotes. Actual rates depend on credit score, loan amount, property type, down payment, and other factors. This is not financial advice. Contact lenders directly for official quotes."
+
+**Every rate sheet image** includes disclaimer text at the bottom:
+> "Publicly advertised rates as of [date/time]. Not personalized quotes. Contact lenders for official rates."
+
+**Every MCP tool description** includes a one-line note:
+> "Returns publicly advertised rates, not personalized quotes."
+
+**Terms of use (with domain):**
+- Informational service only, not advisory
+- Rates are scraped from public websites and may not reflect current offers
+- Users should verify rates directly with lenders before making decisions
+- No guarantee of accuracy — lender websites may update between scrape cycles
 
 ---
 
@@ -379,6 +448,7 @@ mortgage-rates-mcp/
 │   ├── rate_sheet.py           — PNG rate card generator
 │   ├── calculator.py           — payment/scenario/savings math
 │   ├── validators.py           — rate sanity checks + cross-reference
+│   ├── notifications.py        — alert delivery (Discord, email, SMS)
 │   └── extractors/
 │       ├── __init__.py
 │       ├── base.py             — BaseLenderExtractor
@@ -439,9 +509,11 @@ mortgage-rates-mcp/
 ## Future Considerations (not in V1 but designed for)
 
 - Additional lenders (Rocket Mortgage, PNC, LoanDepot — currently too anti-bot)
-- SMS/email delivery for rate alerts
-- White-label rate sheets with broker branding/logo
+- SMS delivery for rate alerts (Twilio integration)
+- White-label rate sheets with broker logo upload
 - Credit score tiers (rates vary by credit score)
 - Jumbo loan rates
 - Refinance-specific rates vs purchase rates
 - Own domain + Cloudflare tunnel
+- Self-service signup page with email verification
+- Broker dashboard (web UI for managing alerts, viewing history)
