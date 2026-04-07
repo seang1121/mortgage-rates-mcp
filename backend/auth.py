@@ -48,17 +48,15 @@ def validate_api_key(raw_key: str) -> dict | None:
     record = rows[0]
     today = datetime.now().strftime('%Y-%m-%d')
 
-    # Reset daily counter if new day (for analytics, not enforcement)
-    if record['last_reset_date'] != today:
-        db.execute(
-            "UPDATE api_keys SET requests_today = 1, last_reset_date = ? WHERE id = ?",
-            (today, record['id'])
-        )
-    else:
-        db.execute(
-            "UPDATE api_keys SET requests_today = requests_today + 1 WHERE id = ?",
-            (record['id'],)
-        )
+    # Atomic counter update — handles day reset + increment in single statement
+    # Prevents race condition when two requests arrive simultaneously on a new day
+    db.execute(
+        """UPDATE api_keys SET
+           requests_today = CASE WHEN last_reset_date != ? THEN 1 ELSE requests_today + 1 END,
+           last_reset_date = ?
+           WHERE id = ?""",
+        (today, today, record['id'])
+    )
 
     record['rate_limited'] = False  # free for now — no limits
     return record

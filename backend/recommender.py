@@ -62,7 +62,8 @@ def get_recommendation(loan_amount: float, credit_score: int = 740,
         seen_lenders.add(r['lender'])
 
         # Determine loan term from product
-        term = 15 if '15' in r['product'] else 30
+        PRODUCT_TERMS = {'15yr': 15}
+        term = PRODUCT_TERMS.get(r['product'], 30)
 
         calc = full_calculation(loan_amount, r['rate'], term, down_payment_pct)
 

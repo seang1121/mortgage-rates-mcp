@@ -136,6 +136,7 @@ class BaseLenderExtractor:
         Override for lenders that need custom interaction (form fill,
         button clicks, CDP fallback, etc.).
         """
+        ctx = None
         try:
             ctx = await browser.new_context(
                 viewport={"width": 1920, "height": 1080},
@@ -157,10 +158,11 @@ class BaseLenderExtractor:
             await ctx.close()
             return self.extract(text)
         except Exception:
-            try:
-                await ctx.close()
-            except Exception:
-                pass
+            if ctx:
+                try:
+                    await ctx.close()
+                except Exception:
+                    pass
             return []
 
     async def _try_zip_input(self, page, zip_code: str):

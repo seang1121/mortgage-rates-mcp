@@ -220,7 +220,7 @@ def compare_lenders_endpoint():
     if not lenders_param:
         return jsonify({'error': 'lenders parameter required (comma-separated)'}), 400
 
-    lender_names = [l.strip() for l in lenders_param.split(',') if l.strip()]
+    lender_names = [l.strip() for l in lenders_param.split(',') if l.strip()][:20]  # cap at 20
 
     conditions = ' OR '.join(['lender LIKE ?' for _ in lender_names])
     params = [f"%{name}%" for name in lender_names]
@@ -253,7 +253,7 @@ def get_rate_history():
     """Historical trend data — up to 90 days with AM/PM granularity."""
     product = request.args.get('product', '30yr')
     lender = request.args.get('lender', '').strip()
-    days = min(int(request.args.get('days', 30)), 90)
+    days = min(request.args.get('days', 30, type=int) or 30, 90)
 
     query = """SELECT date, time_of_day, lender, product, rate, apr
                FROM rate_history
@@ -479,7 +479,7 @@ def generate_rate_sheet():
         'success': True,
         'image_base64': image_b64,
         'format': 'PNG',
-        'disclaimer': DISCLAIMER_SHORT,
+        'disclaimer': DISCLAIMER,
     })
 
 

@@ -117,14 +117,16 @@ async def _async_scrape(zip_code: str) -> dict:
                             print(f"  [{extractor.name}] OK on retry {attempt + 1} ({duration}ms)")
                             retried = True
                             break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        last_error = str(e)
+                        print(f"  [{extractor.name}] Retry {attempt + 1} error: {last_error[:100]}")
 
                 if not retried:
                     # Final failure — take screenshot for debugging
                     screenshot_path = await _take_screenshot(browser, extractor, zip_code)
                     _log_scrape(session_id, extractor.name, "failed", 0, 0,
-                                "All retries exhausted", screenshot_path)
+                                f"All retries exhausted. Last error: {last_error[:200] if 'last_error' in dir() else 'unknown'}",
+                                screenshot_path)
                     print(f"  [{extractor.name}] FAILED after {MAX_RETRIES} retries")
 
         await browser.close()
@@ -255,13 +257,15 @@ def _log_scrape(session_id, lender, status, rates_found, duration_ms, error=None
 
 
 def _store_rates(rates, zip_code, scraped_at, session_id, time_of_day):
-    """Store validated rates in both `rates` (current) and `rate_history` (rolling 90-day)."""
+    """Store validated rates in both `rates` (current) and `rate_history` (rolling 90-day).
+
+    Uses atomic swap: insert new rates first, then delete old ones in same transaction.
+    This prevents a zero-rate window where the API serves empty results mid-scrape.
+    """
     today = datetime.now().strftime('%Y-%m-%d')
 
     with db.get_connection() as conn:
-        # Replace current rates with new scrape
-        conn.execute("DELETE FROM rates")
-
+        # Insert new rates first (alongside old ones temporarily)
         for r in rates:
             stale = 1 if check_staleness(r.lender, r.product, r.rate) else 0
             conn.execute(
@@ -277,6 +281,9 @@ def _store_rates(rates, zip_code, scraped_at, session_id, time_of_day):
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (today, time_of_day, r.lender, r.product, r.rate, r.apr, zip_code)
             )
+
+        # Now delete old rates (from previous scrape sessions) — atomic with inserts above
+        conn.execute("DELETE FROM rates WHERE scrape_session != ?", (session_id,))
         conn.commit()
 
     # Prune history older than 90 days
@@ -287,10 +294,10 @@ def _apply_fallbacks(failures, zip_code, scraped_at, session_id):
     """For failed lenders, serve their last known good rates with stale=1."""
     for lender in failures:
         last_good = db.query(
-            """SELECT DISTINCT lender, product, rate, apr
+            """SELECT lender, product, rate, apr
                FROM rate_history
                WHERE lender = ?
-               ORDER BY created_at DESC
+               ORDER BY date DESC, time_of_day DESC
                LIMIT 10""",
             (lender,)
         )
