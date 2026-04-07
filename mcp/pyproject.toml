@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mortgage-rates-mcp"
+version = "0.1.0"
+description = "MCP server for real-time mortgage rate comparison — 19 lenders, 12 tools, AI-powered rate intelligence for realtors and brokers."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "seang1121" }]
+keywords = ["mcp", "mortgage", "rates", "real-estate", "lending", "broker", "realtor", "openai", "claude", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = ["mcp>=1.0.0"]
+
+[project.scripts]
+mortgage-rates-mcp = "mortgage_rates_mcp.server:mcp.run"
+
+[project.urls]
+Homepage = "https://github.com/seang1121/mortgage-rates-mcp"
+Repository = "https://github.com/seang1121/mortgage-rates-mcp"
+Issues = "https://github.com/seang1121/mortgage-rates-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mortgage_rates_mcp"]
