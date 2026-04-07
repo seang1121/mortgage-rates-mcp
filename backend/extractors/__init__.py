@@ -34,6 +34,7 @@ TIER1_EXTRACTORS = [
     CitizensExtractor(),
     WellsFargoExtractor(),
     FlagstarExtractor(),      # via WalletHub JSON
+    PNCExtractor(),           # via MortgageHog Next.js JSON API
     # USAA disabled — third-party sources return outdated review data, not current rates
     # Re-enable when we find a reliable data source or bypass Akamai TLS
 ]
@@ -52,7 +53,6 @@ TIER2_EXTRACTORS = [
 TIER3_EXTRACTORS = [
     ChaseExtractor(),
     RocketMortgageExtractor(),
-    PNCExtractor(),
 ]
 
 ALL_EXTRACTORS = TIER1_EXTRACTORS + TIER2_EXTRACTORS + TIER3_EXTRACTORS
