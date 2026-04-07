@@ -61,7 +61,12 @@ class PennyMacExtractor(BaseLenderExtractor):
                 print(f"[{self.name}] Failed to fetch {category}: {e}")
                 continue
 
-        return results
+        # Dedup: keep only the lowest rate per product
+        best_by_product = {}
+        for r in results:
+            if r.product not in best_by_product or r.rate < best_by_product[r.product].rate:
+                best_by_product[r.product] = r
+        return list(best_by_product.values())
 
     def _map_product(self, name: str, category: str) -> str | None:
         """Map PennyMac product name to our standardized product key."""

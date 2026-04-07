@@ -34,7 +34,8 @@ TIER1_EXTRACTORS = [
     CitizensExtractor(),
     WellsFargoExtractor(),
     FlagstarExtractor(),      # via WalletHub JSON
-    USAAExtractor(),          # via NerdWallet/Bankrate (HTTP first, browser fallback)
+    # USAA disabled — third-party sources return outdated review data, not current rates
+    # Re-enable when we find a reliable data source or bypass Akamai TLS
 ]
 
 TIER2_EXTRACTORS = [

@@ -509,6 +509,19 @@ def create_alert():
     if not product or threshold is None:
         return jsonify({'error': 'product and threshold required'}), 400
 
+    # Validate product is a known type
+    from backend.extractors.base import VALID_PRODUCTS
+    if product not in VALID_PRODUCTS:
+        return jsonify({'error': f'Invalid product. Valid: {", ".join(sorted(VALID_PRODUCTS))}'}), 400
+
+    # Validate threshold is a reasonable number
+    try:
+        threshold = float(threshold)
+        if not (1.0 <= threshold <= 15.0):
+            return jsonify({'error': 'Threshold must be between 1.0 and 15.0'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Threshold must be a number'}), 400
+
     user_id = g.api_user['user_id']
     db.execute(
         """INSERT INTO rate_alerts (user_id, product, threshold, lender)
@@ -564,9 +577,43 @@ def llms_txt():
 
 # ── Startup ─────────────────────────────────────────────────────────────────
 
+# ── Global Error Handler ────────────────────────────────────────────────────
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Catch unhandled exceptions — never expose stack traces to users."""
+    print(f"[ERROR] Unhandled exception: {e}")
+    import traceback
+    traceback.print_exc()
+    return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({'error': 'Method not allowed'}), 405
+
+
+# ── Startup ─────────────────────────────────────────────────────────────────
+
 if __name__ == '__main__':
+    import signal
+    import sys
+
     from backend.scheduler import start_scheduler
     start_scheduler()
+
+    def graceful_shutdown(signum, frame):
+        print("\n[APP] Shutting down gracefully...")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, graceful_shutdown)
+    signal.signal(signal.SIGTERM, graceful_shutdown)
+
     port = int(os.getenv('FLASK_PORT', 5001))
     print(f"Mortgage Rates API starting on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
