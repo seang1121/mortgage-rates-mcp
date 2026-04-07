@@ -33,6 +33,9 @@ TIER1_EXTRACTORS = [
     PennyMacExtractor(),
     CitizensExtractor(),
     WellsFargoExtractor(),
+    FlagstarExtractor(),      # via WalletHub JSON
+    LoanDepotExtractor(),     # via Scully pre-rendered pages
+    USAAExtractor(),          # via NerdWallet/Bankrate (HTTP first, browser fallback)
 ]
 
 TIER2_EXTRACTORS = [
@@ -50,9 +53,6 @@ TIER3_EXTRACTORS = [
     ChaseExtractor(),
     RocketMortgageExtractor(),
     PNCExtractor(),
-    USAAExtractor(),
-    FlagstarExtractor(),
-    LoanDepotExtractor(),
 ]
 
 ALL_EXTRACTORS = TIER1_EXTRACTORS + TIER2_EXTRACTORS + TIER3_EXTRACTORS

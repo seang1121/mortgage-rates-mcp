@@ -77,7 +77,14 @@ async def _async_scrape(zip_code: str) -> dict:
     from patchright.async_api import async_playwright
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        # Try system Chrome first (better TLS fingerprint for anti-bot sites),
+        # fall back to bundled Chromium if Chrome isn't installed
+        try:
+            browser = await pw.chromium.launch(headless=True, channel="chrome")
+            print("[SCRAPER] Using system Chrome (better TLS fingerprint)")
+        except Exception:
+            browser = await pw.chromium.launch(headless=True)
+            print("[SCRAPER] Using bundled Chromium")
 
         # Tier 2: Batches of 4
         print(f"[SCRAPER] Tier 2: {len(TIER2_EXTRACTORS)} easy browser lenders")

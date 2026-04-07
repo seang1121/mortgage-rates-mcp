@@ -1,70 +1,99 @@
-"""Flagstar Bank (NYCB) — large mortgage servicer. Cloudflare protection.
+"""Flagstar Bank (NYCB) — rates via WalletHub proxy. No browser needed.
 
-Source: flagstar.com/.../mortgage-rates.html
-Anti-bot: Cloudflare (managed challenge / Turnstile)
-Strategy: Fill the rate form (purchase price, down payment, ZIP, credit score)
-          and submit. JS assets are behind Cloudflare but patchright should pass.
-Products: 30yr, 15yr, ARM, Jumbo
+Flagstar's own site is behind heavy Cloudflare Turnstile that blocks automation.
+WalletHub publishes Flagstar's rates with embedded JSON — no anti-bot protection.
+
+Source: wallethub.com/mortgage-rates/flagstar-bank-13003351i
+Anti-bot: None on WalletHub
+Products: 30yr, 15yr, FHA, ARM (varies)
 """
+import json
+import re
+import ssl
+import urllib.request
+
 from backend.extractors.base import BaseLenderExtractor, RateResult
 
 
 class FlagstarExtractor(BaseLenderExtractor):
     name = "Flagstar"
-    url = "https://www.flagstar.com/personal/borrow/home-loans/mortgage-rates.html"
-    wait_ms = 15000
+    url = "https://wallethub.com/mortgage-rates/flagstar-bank-13003351i"
+    requires_browser = False
 
-    async def scrape(self, browser, zip_code: str) -> list[RateResult]:
-        """Fill Flagstar's rate form and extract results after Cloudflare."""
+    PRODUCT_MAP = {
+        "30 year fixed": "30yr",
+        "30-year fixed": "30yr",
+        "15 year fixed": "15yr",
+        "15-year fixed": "15yr",
+        "30 year fha": "FHA_30yr",
+        "30-year fha": "FHA_30yr",
+        "fha 30": "FHA_30yr",
+        "30 year va": "VA_30yr",
+        "30-year va": "VA_30yr",
+    }
+
+    def fetch(self) -> list[RateResult]:
+        """Fetch Flagstar rates from WalletHub's embedded JSON."""
         try:
-            ctx = await browser.new_context(
-                viewport={"width": 1920, "height": 1080},
-                user_agent=(
+            ctx = ssl.create_default_context()
+            req = urllib.request.Request(self.url, headers={
+                "User-Agent": (
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-                locale="en-US",
-            )
-            page = await ctx.new_page()
-            await page.goto(self.url, timeout=30000, wait_until="domcontentloaded")
-            await page.wait_for_timeout(self.wait_ms)
+                    "Chrome/133.0.0.0 Safari/537.36"
+                )
+            })
+            with urllib.request.urlopen(req, timeout=15, context=ctx) as r:
+                html = r.read().decode("utf-8", errors="replace")
 
-            # Fill form fields
-            form_fields = [
-                ('input[name*="purchasePrice" i], input[id*="purchasePrice" i]', '400000'),
-                ('input[name*="downPayment" i], input[id*="downPayment" i]', '80000'),
-                ('input[name*="zip" i], input[name*="Zipcode" i], input[id*="zip" i]', zip_code),
-            ]
+            results = []
+            seen = set()
 
-            for selectors, value in form_fields:
-                for sel in selectors.split(', '):
-                    el = await page.query_selector(sel)
-                    if el:
-                        await el.fill(value)
-                        await page.wait_for_timeout(300)
-                        break
-
-            # Submit form
-            for btn_sel in [
-                'button:has-text("Submit")',
-                'button:has-text("See")',
-                'button:has-text("Get")',
-                'input[type="submit"]',
-                'button[type="submit"]',
+            # Try to find JSON data blocks with rate info
+            # WalletHub embeds rate data in JSON-LD or inline script blocks
+            for pattern in [
+                r'"rate"\s*:\s*(\d+\.?\d*)\s*,\s*"aprEffective"\s*:\s*(\d+\.?\d*)\s*,.*?"product[Nn]ame"\s*:\s*"([^"]+)"',
+                r'"product[Nn]ame"\s*:\s*"([^"]+)".*?"rate"\s*:\s*(\d+\.?\d*)\s*,\s*"aprEffective"\s*:\s*(\d+\.?\d*)',
             ]:
-                btn = await page.query_selector(btn_sel)
-                if btn:
-                    await btn.click()
-                    await page.wait_for_timeout(8000)
-                    break
+                for m in re.finditer(pattern, html, re.DOTALL):
+                    groups = m.groups()
+                    if len(groups) == 3:
+                        # Determine which group is which based on pattern order
+                        if groups[0].replace('.', '').isdigit():
+                            rate_val, apr_val, product_name = float(groups[0]), float(groups[1]), groups[2]
+                        else:
+                            product_name, rate_val, apr_val = groups[0], float(groups[1]), float(groups[2])
 
-            text = await page.inner_text("body")
-            await ctx.close()
-            return self.extract(text)
-        except Exception:
-            try:
-                await ctx.close()
-            except Exception:
-                pass
+                        product = self._map_product(product_name)
+                        if product and product not in seen:
+                            if 2.5 <= rate_val <= 14.0:
+                                results.append(RateResult(
+                                    lender=self.name,
+                                    product=product,
+                                    rate=rate_val,
+                                    apr=apr_val if 2.5 <= apr_val <= 16.0 else None,
+                                ))
+                                seen.add(product)
+
+            # Fallback: try regex extraction on stripped text
+            if not results:
+                text = re.sub(r'<[^>]+>', ' ', html)
+                results = self.extract(text)
+
+            return results
+        except Exception as e:
+            print(f"[{self.name}] WalletHub fetch failed: {e}")
             return []
+
+    def _map_product(self, name: str) -> str | None:
+        name_lower = name.lower().strip()
+        for pattern, key in self.PRODUCT_MAP.items():
+            if pattern in name_lower:
+                return key
+        if 'arm' in name_lower or 'adjustable' in name_lower:
+            return 'ARM'
+        return None
+
+    async def scrape(self, browser, zip_code: str) -> list[RateResult]:
+        """Override — no browser needed."""
+        return self.fetch()
