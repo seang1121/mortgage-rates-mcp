@@ -1,0 +1,52 @@
+# mortgage-rates-mcp
+
+> Real-time mortgage rate comparison across 19 major US lenders + 2 national benchmarks. AI-native MCP server for realtors, brokers, and homebuyers.
+
+## Tools (12)
+
+- get_rates: All current rates by product (30-Year Fixed, 15-Year Fixed, ARM, FHA, VA). Optional ZIP and lender filter.
+- get_best_rate: Single best rate for a loan type across all lenders.
+- compare_lenders: Side-by-side comparison of specific lenders (e.g., "Chase vs Wells Fargo vs Navy Federal").
+- get_rate_history: Trend data up to 90 days with AM/PM granularity. Shows direction (up/down/flat).
+- get_lender_details: All products from one specific lender.
+- get_system_status: Health check — last scrape time, lender count, uptime.
+- calculate_payment: Monthly payment, total interest, full amortization breakdown.
+- generate_rate_sheet: Client-ready PNG rate card image for texting to buyers.
+- set_rate_alert: Threshold notification when rates drop below target.
+- compare_scenarios: 30yr vs 15yr vs ARM with monthly payments, total cost, and breakeven analysis.
+- estimate_savings: Savings from switching lenders with refinance breakeven.
+- get_recommendation: AI-ranked top 5 lender picks based on borrower profile with explanations.
+
+## Authentication
+
+API key required. Prefix: mort_*
+Free, unlimited access.
+Get key: POST /api/v1/register with {"email": "...", "password": "..."}
+
+## Data Freshness
+
+Rates scraped at 7:00 AM and 7:00 PM EST daily.
+4 lenders via direct API (instant, most reliable).
+15 lenders via stealth browser scraping.
+90-day rolling history with AM/PM granularity.
+
+## Lenders (19)
+
+Bank of America, Wells Fargo, Chase, Citi, Navy Federal CU, SoFi, US Bank, Guaranteed Rate, Truist, Mr. Cooper, Rocket Mortgage, PNC, PennyMac, Citizens Bank, USAA, Flagstar, LoanDepot
+
+## Benchmarks (2)
+
+Freddie Mac PMMS (national weekly average), Mortgage News Daily Index (real-time daily)
+
+## Products
+
+30-Year Fixed, 15-Year Fixed, Adjustable Rate (ARM), FHA 30-Year Fixed, VA 30-Year Fixed
+
+## Disclaimer
+
+Rates shown are publicly advertised rates scraped from lender websites and are not personalized quotes. Actual rates depend on credit score, loan amount, property type, down payment, and other factors. This is not financial advice. Contact lenders directly for official quotes.
+
+## Links
+
+- Install: pip install mortgage-rates-mcp
+- GitHub: https://github.com/seang1121/mortgage-rates-mcp
