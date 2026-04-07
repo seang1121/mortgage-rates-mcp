@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Rates MCP Server — Real-Time AI-Powered Rate Comparison</title>
+    <meta name="description" content="Compare mortgage rates from 17 major US lenders through any AI assistant. 12 tools for rates, comparison, payment calculation, and recommendations. Free, open source, no lead generation.">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-card: #13131a;
+            --bg-card-hover: #1a1a24;
+            --text: #e8e8ed;
+            --text-secondary: #9898a8;
+            --text-muted: #5a5a6e;
+            --accent: #22c55e;
+            --accent-dim: rgba(34, 197, 94, 0.15);
+            --accent-glow: rgba(34, 197, 94, 0.3);
+            --border: #2a2a38;
+            --error: #ef4444;
+            --blue: #3b82f6;
+            --gold: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+        /* ── HERO ──────────────────────────────────────── */
+        .hero {
+            padding: 100px 0 80px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        .hero-badge {
+            display: inline-block;
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+        .hero h1 {
+            font-size: clamp(36px, 5vw, 64px);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            margin-top: 48px;
+            flex-wrap: wrap;
+        }
+        .hero-stat {
+            text-align: center;
+        }
+        .hero-stat-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+        .hero-stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* ── BUTTONS ───────────────────────────────────── */
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-primary:hover {
+            background: #16a34a;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            margin-left: 12px;
+        }
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ── LIVE RATES ────────────────────────────────── */
+        .live-rates {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .section-subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+        .rates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .rate-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .rate-card:hover {
+            border-color: var(--accent);
+            background: var(--bg-card-hover);
+        }
+        .rate-card-product {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .rate-card-rate {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+        .rate-card-lender {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .rate-card-apr {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .rates-updated {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 16px;
+        }
+
+        /* ── HOW IT WORKS ──────────────────────────────── */
+        .how-it-works {
+            padding: 80px 0;
+            border-top: 1px solid var(--border);
+        }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 40px;
+        }
+        .step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+        }
+        .step-number {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            line-height: 36px;
+            text-align: center;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        .step h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .step p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .step code {
+            display: block;
+            background: #000;
+            color: var(--accent);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 12px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        /* ── TOOLS ─────────────────────────────────────── */
+        .tools {
+            padding: 80px 0;
+            border-top: 1px solid var(--border);
+        }
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+        .tool-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        .tool-card:hover {
+            border-color: var(--accent);
+        }
+        .tool-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+        .tool-icon { margin-right: 6px; }
+        .tool-question {
+            font-size: 15px;
+            font-style: italic;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        .tool-answer {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'SF Mono', monospace;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        /* ── LENDERS ───────────────────────────────────── */
+        .lenders {
+            padding: 80px 0;
+            border-top: 1px solid var(--border);
+        }
+        .lender-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .lender-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .lender-item .tier {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-top: 4px;
+        }
+
+        /* ── SIGNUP ────────────────────────────────────── */
+        .signup {
+            padding: 80px 0;
+            border-top: 1px solid var(--border);
+        }
+        .signup-box {
+            max-width: 480px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+        }
+        .signup-box h2 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .signup-box .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: var(--accent);
+        }
+        .signup-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+        .signup-btn:hover {
+            background: #16a34a;
+        }
+        .signup-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #signup-result {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+            text-align: left;
+        }
+        #signup-result.success {
+            display: block;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+        }
+        #signup-result.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+        .key-display {
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            background: #000;
+            padding: 12px;
+            border-radius: 6px;
+            word-break: break-all;
+            color: var(--accent);
+            margin-top: 8px;
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* ── COMPARISON ────────────────────────────────── */
+        .comparison {
+            padding: 80px 0;
+            border-top: 1px solid var(--border);
+        }
+        .comparison table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .comparison th {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .comparison td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .comparison tr:hover td {
+            background: var(--bg-card);
+        }
+        .check { color: var(--accent); }
+        .cross { color: var(--text-muted); }
+
+        /* ── FOOTER ────────────────────────────────────── */
+        .footer {
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .footer a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .footer a:hover {
+            color: var(--accent);
+        }
+        .disclaimer-footer {
+            max-width: 700px;
+            margin: 16px auto 0;
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 640px) {
+            .hero { padding: 60px 0 40px; }
+            .hero-stats { gap: 24px; }
+            .btn-secondary { margin-left: 0; margin-top: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="container">
+        <span class="hero-badge">🟢 LIVE — Rates updated at 7am & 7pm EST</span>
+        <h1>Stop Googling Mortgage Rates</h1>
+        <p>Ask your AI assistant for real-time rates from 17 major US lenders. One command. Instantly. Free.</p>
+        <div>
+            <a href="#signup" class="btn btn-primary">🔑 Get Your Free API Key</a>
+            <a href="https://github.com/seang1121/mortgage-rates-mcp" class="btn btn-secondary" target="_blank">⭐ GitHub</a>
+        </div>
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-value">17</div>
+                <div class="hero-stat-label">Lenders</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">12</div>
+                <div class="hero-stat-label">AI Tools</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">2x</div>
+                <div class="hero-stat-label">Daily Updates</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">$0</div>
+                <div class="hero-stat-label">Price</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- LIVE RATES -->
+<section class="live-rates">
+    <div class="container">
+        <h2 class="section-title">📊 Live Rates — Right Now</h2>
+        <p class="section-subtitle">Best available rate per product across all lenders</p>
+        <div class="rates-grid" id="liveRates">
+            <div class="rate-card"><div class="rate-card-product">Loading...</div></div>
+        </div>
+        <div class="rates-updated" id="ratesUpdated"></div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-it-works">
+    <div class="container">
+        <h2 class="section-title">⚡ Three Steps. That's It.</h2>
+        <p class="section-subtitle">Works with Claude, ChatGPT, Cursor, Windsurf, VS Code — any MCP client</p>
+        <div class="steps">
+            <div class="step">
+                <span class="step-number">1</span>
+                <h3>Install</h3>
+                <p>One pip command. No dependencies beyond the MCP library.</p>
+                <code>pip install mortgage-rates-mcp</code>
+            </div>
+            <div class="step">
+                <span class="step-number">2</span>
+                <h3>Configure</h3>
+                <p>Add to your AI client's MCP config. Takes 30 seconds.</p>
+                <code>{ "command": "mortgage-rates-mcp" }</code>
+            </div>
+            <div class="step">
+                <span class="step-number">3</span>
+                <h3>Ask</h3>
+                <p>Talk to your AI like a human. It has live rate data now.</p>
+                <code>"What's the best 30-year rate?"</code>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TOOLS -->
+<section class="tools">
+    <div class="container">
+        <h2 class="section-title">🛠️ 12 Tools — Ask Anything About Mortgages</h2>
+        <p class="section-subtitle">Every tool a realtor, broker, or homebuyer needs</p>
+        <div class="tools-grid">
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🏷️</span>get_rates</div>
+                <div class="tool-question">"Show me all current rates"</div>
+                <div class="tool-answer">Returns all rates grouped by 30yr, 15yr, ARM, FHA, VA</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🏆</span>get_best_rate</div>
+                <div class="tool-question">"What's the best 30-year fixed?"</div>
+                <div class="tool-answer">PennyMac at 5.625% (5.822% APR)</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">⚖️</span>compare_lenders</div>
+                <div class="tool-question">"Compare Chase vs Wells Fargo"</div>
+                <div class="tool-answer">Side-by-side with rates, APR, and highlights</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">📈</span>get_rate_history</div>
+                <div class="tool-question">"How have rates moved this month?"</div>
+                <div class="tool-answer">90-day trend with AM/PM tracking + direction</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🧮</span>calculate_payment</div>
+                <div class="tool-question">"Payment on $450K, 20% down?"</div>
+                <div class="tool-answer">$2,245.93/mo | $448,535 total interest</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🎯</span>get_recommendation</div>
+                <div class="tool-question">"Best options for 740 credit?"</div>
+                <div class="tool-answer">Top 5 ranked picks with explanations</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">💰</span>estimate_savings</div>
+                <div class="tool-question">"Save me money vs PNC"</div>
+                <div class="tool-answer">$173.57/mo savings = $62,485 over 30 years</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">📊</span>compare_scenarios</div>
+                <div class="tool-question">"30yr vs 15yr vs ARM?"</div>
+                <div class="tool-answer">Monthly payment + total cost + breakeven</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🖼️</span>generate_rate_sheet</div>
+                <div class="tool-question">"Make me a rate card for my buyer"</div>
+                <div class="tool-answer">Client-ready PNG image for texting</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🔔</span>set_rate_alert</div>
+                <div class="tool-question">"Alert when 30yr drops below 6%"</div>
+                <div class="tool-answer">Discord + email notification on threshold</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">🏦</span>get_lender_details</div>
+                <div class="tool-question">"What does Rocket Mortgage offer?"</div>
+                <div class="tool-answer">All products from one lender</div>
+            </div>
+            <div class="tool-card">
+                <div class="tool-name"><span class="tool-icon">💚</span>get_system_status</div>
+                <div class="tool-question">"Is the system healthy?"</div>
+                <div class="tool-answer">Uptime, last scrape, lender count</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- LENDERS -->
+<section class="lenders">
+    <div class="container">
+        <h2 class="section-title">🏦 17 Lenders We Track</h2>
+        <p class="section-subtitle">Direct from lender sources — no middleman, no lead generation</p>
+        <div class="lender-grid">
+            <div class="lender-item">🏛️ Freddie Mac<span class="tier">Benchmark</span></div>
+            <div class="lender-item">📰 MND Index<span class="tier">Benchmark</span></div>
+            <div class="lender-item">Wells Fargo<span class="tier">API</span></div>
+            <div class="lender-item">PNC<span class="tier">API</span></div>
+            <div class="lender-item">PennyMac<span class="tier">API</span></div>
+            <div class="lender-item">Citizens Bank<span class="tier">API</span></div>
+            <div class="lender-item">Flagstar<span class="tier">API</span></div>
+            <div class="lender-item">Bank of America<span class="tier">Browser</span></div>
+            <div class="lender-item">Chase<span class="tier">Browser</span></div>
+            <div class="lender-item">Citi<span class="tier">Browser</span></div>
+            <div class="lender-item">Rocket Mortgage<span class="tier">Browser</span></div>
+            <div class="lender-item">Navy Federal CU<span class="tier">Browser</span></div>
+            <div class="lender-item">SoFi<span class="tier">Browser</span></div>
+            <div class="lender-item">US Bank<span class="tier">Browser</span></div>
+            <div class="lender-item">Guaranteed Rate<span class="tier">Browser</span></div>
+            <div class="lender-item">Truist<span class="tier">Browser</span></div>
+            <div class="lender-item">Mr. Cooper<span class="tier">Browser</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- SIGNUP -->
+<section class="signup" id="signup">
+    <div class="container">
+        <div class="signup-box">
+            <h2>🔑 Get Your Free API Key</h2>
+            <p class="subtitle">No credit card. No limits. Instant access.</p>
+            <form id="signup-form" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password (8+ characters)</label>
+                    <input type="password" id="password" placeholder="Choose a password" minlength="8" required>
+                </div>
+                <button type="submit" class="signup-btn" id="signup-btn">Get API Key</button>
+            </form>
+            <div id="signup-result"></div>
+        </div>
+    </div>
+</section>
+
+<!-- COMPARISON -->
+<section class="comparison">
+    <div class="container">
+        <h2 class="section-title">🥊 How We Compare</h2>
+        <p class="section-subtitle">Built different from day one</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Us</th>
+                    <th>RateAPI</th>
+                    <th>Bankrate</th>
+                    <th>NerdWallet</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Lender types</td><td>Banks + online + CU</td><td>Credit unions only</td><td>Paid listings</td><td>Paid listings</td></tr>
+                <tr><td>Price</td><td class="check">Free forever</td><td>$9-49/mo</td><td>Free (you're the product)</td><td>Free (you're the product)</td></tr>
+                <tr><td>AI-native (MCP)</td><td class="check">✅ 12 tools</td><td class="check">✅ 5 tools</td><td class="cross">❌</td><td class="cross">❌</td></tr>
+                <tr><td>Rate history</td><td class="check">✅ 90 days AM/PM</td><td class="cross">❌</td><td class="cross">❌</td><td class="cross">❌</td></tr>
+                <tr><td>Rate alerts</td><td class="check">✅ Free</td><td>Pro only ($49)</td><td class="cross">❌</td><td class="cross">❌</td></tr>
+                <tr><td>Payment calculator</td><td class="check">✅ Built-in</td><td class="cross">❌</td><td>Separate tool</td><td>Separate tool</td></tr>
+                <tr><td>Rate sheet images</td><td class="check">✅ Text-ready PNG</td><td class="cross">❌</td><td class="cross">❌</td><td class="cross">❌</td></tr>
+                <tr><td>AI recommendations</td><td class="check">✅ Ranked</td><td class="check">✅</td><td class="cross">❌</td><td class="cross">❌</td></tr>
+                <tr><td>Lead selling</td><td class="check">Never</td><td class="check">Never</td><td>Core business</td><td>Core business</td></tr>
+                <tr><td>Open source</td><td class="check">✅ MIT</td><td class="cross">❌</td><td class="cross">❌</td><td class="cross">❌</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="container">
+        <p>
+            Built by <a href="https://github.com/seang1121">seang1121</a> •
+            <a href="https://github.com/seang1121/mortgage-rates-mcp">GitHub</a> •
+            MIT License
+        </p>
+        <div class="disclaimer-footer">
+            Rates shown are publicly advertised rates scraped from lender websites and are not personalized quotes.
+            Actual rates depend on credit score, loan amount, property type, down payment, and other factors.
+            This is not financial advice. Contact lenders directly for official quotes.
+        </div>
+    </div>
+</footer>
+
+<script>
+// Load live rates from API
+async function loadLiveRates() {
+    try {
+        const resp = await fetch('/api/v1/rates/best');
+        const data = await resp.json();
+        if (!data.success || !data.best_rates || data.best_rates.length === 0) {
+            document.getElementById('liveRates').innerHTML = '<div class="rate-card"><div class="rate-card-product">Rates loading after next scrape...</div></div>';
+            return;
+        }
+        const grid = document.getElementById('liveRates');
+        grid.innerHTML = data.best_rates.map(r => `
+            <div class="rate-card">
+                <div class="rate-card-product">${r.product_name}</div>
+                <div class="rate-card-rate">${r.rate.toFixed(3)}%</div>
+                <div class="rate-card-lender">${r.lender}</div>
+                ${r.apr ? `<div class="rate-card-apr">${r.apr.toFixed(3)}% APR</div>` : ''}
+            </div>
+        `).join('');
+        document.getElementById('ratesUpdated').textContent = `Last updated: ${new Date(data.timestamp).toLocaleString()}`;
+    } catch (e) {
+        console.error('Failed to load rates:', e);
+    }
+}
+
+// Handle signup form
+async function handleSignup(e) {
+    e.preventDefault();
+    const btn = document.getElementById('signup-btn');
+    const result = document.getElementById('signup-result');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    result.className = '';
+    result.style.display = 'none';
+
+    try {
+        const resp = await fetch('/api/v1/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+            }),
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            result.className = 'success';
+            result.innerHTML = `
+                <strong>🎉 Account created!</strong><br><br>
+                <strong>Your API Key:</strong>
+                <div class="key-display" id="api-key-display">
+                    ${data.api_key}
+                    <button class="copy-btn" onclick="copyKey()">Copy</button>
+                </div>
+                <br>
+                <strong style="color: var(--gold);">⚠️ Save this key now — it cannot be retrieved later.</strong>
+            `;
+        } else {
+            result.className = 'error';
+            result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+        }
+    } catch (e) {
+        result.className = 'error';
+        result.innerHTML = '<strong>Error:</strong> Could not connect to server.';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Get API Key';
+}
+
+function copyKey() {
+    const key = document.getElementById('api-key-display').textContent.replace('Copy', '').trim();
+    navigator.clipboard.writeText(key);
+    document.querySelector('.copy-btn').textContent = 'Copied!';
+    setTimeout(() => document.querySelector('.copy-btn').textContent = 'Copy', 2000);
+}
+
+// Load rates on page load
+loadLiveRates();
+</script>
+
+</body>
+</html>

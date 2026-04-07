@@ -459,3 +459,39 @@ def get_recommendation(loan_amount: float, credit_score: int = 740,
     lines.append(f"Rates as of: {data.get('rates_as_of', 'N/A')}")
     lines.append(f"\n{DISCLAIMER_NOTE}")
     return "\n".join(lines)
+
+
+@mcp.tool()
+def register(email: str, password: str) -> str:
+    """Register for a free API key to access mortgage rate data.
+
+    Creates an account and returns your mort_* API key instantly.
+    Free, unlimited access. No credit card required.
+
+    Args:
+        email: Your email address
+        password: Choose a password (8+ characters)
+    """
+    try:
+        body = {"email": email, "password": password}
+        url = f"{BASE_URL}/api/v1/register"
+        payload = json.dumps(body).encode()
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+
+        if data.get("success"):
+            return (
+                f"Account created successfully!\n\n"
+                f"Your API Key: {data['api_key']}\n\n"
+                f"SAVE THIS KEY — it cannot be retrieved later.\n\n"
+                f"To use: set MORTGAGE_API_KEY={data['api_key']} in your MCP config."
+            )
+        else:
+            return f"Registration failed: {data.get('error', 'Unknown error')}"
+    except Exception as e:
+        return f"Registration error: {e}"

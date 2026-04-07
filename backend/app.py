@@ -10,7 +10,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, render_template
 
 from backend.database import db
 from backend.auth import validate_api_key, register_user
@@ -20,7 +20,7 @@ from backend.recommender import get_recommendation
 from backend.extractors.base import PRODUCT_DISPLAY_NAMES
 from backend.extractors import TOTAL_LENDER_COUNT, TOTAL_BENCHMARK_COUNT
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates'))
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-change-me')
 
 START_TIME = datetime.now()
@@ -32,7 +32,8 @@ START_TIME = datetime.now()
 def require_api_key():
     """Require mort_* API key on all routes except health and register."""
     # Public endpoints — no auth needed
-    public_paths = ['/api/v1/health', '/api/v1/register', '/llms.txt', '/favicon.ico']
+    public_paths = ['/api/v1/health', '/api/v1/register', '/api/v1/rates/best',
+                    '/llms.txt', '/favicon.ico', '/']
     if request.path in public_paths:
         return None
 
@@ -80,6 +81,14 @@ def _format_rate_row(row: dict) -> dict:
         'stale': bool(row.get('stale', 0)),
         'scraped_at': row.get('scraped_at'),
     }
+
+
+# ── Landing Page ────────────────────────────────────────────────────────────
+
+@app.route('/')
+def landing():
+    """Landing page with signup form and live rates."""
+    return render_template('landing.html')
 
 
 # ── Public Endpoints ────────────────────────────────────────────────────────
