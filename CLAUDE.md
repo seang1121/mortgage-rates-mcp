@@ -25,8 +25,8 @@ Monitoring: `scrape_logs`
 Database is NOT in git. Use `scripts/create_database.py` to initialize.
 
 ## Three-Tier Data Fetching
-- **Tier 1** (4 sources): Direct API/JSON — Freddie Mac, MND, PennyMac, Citizens
-- **Tier 2** (9 lenders): Stealth browser, low protection — BofA, Wells, Citi, Navy Fed, SoFi, US Bank, Guaranteed Rate, Truist, Mr. Cooper
+- **Tier 1** (5 sources): Direct API/JSON — Freddie Mac, MND, PennyMac, Citizens, Wells Fargo
+- **Tier 2** (8 lenders): Stealth browser, low protection — BofA, Citi, Navy Fed, SoFi, US Bank, Guaranteed Rate, Truist, Mr. Cooper
 - **Tier 3** (6 lenders): Stealth browser, heavy anti-bot — Chase, Rocket, PNC, USAA, Flagstar, LoanDepot
 
 ## Conventions

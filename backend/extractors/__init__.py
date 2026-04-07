@@ -6,10 +6,10 @@ from backend.extractors.freddie_mac import FreddieMacExtractor
 from backend.extractors.mnd import MNDExtractor
 from backend.extractors.pennymac import PennyMacExtractor
 from backend.extractors.citizens import CitizensExtractor
+from backend.extractors.wells_fargo import WellsFargoExtractor
 
 # Tier 2 — Stealth browser, low protection
 from backend.extractors.bank_of_america import BankOfAmericaExtractor
-from backend.extractors.wells_fargo import WellsFargoExtractor
 from backend.extractors.citi import CitiExtractor
 from backend.extractors.navy_federal import NavyFederalExtractor
 from backend.extractors.sofi import SoFiExtractor
@@ -32,11 +32,11 @@ TIER1_EXTRACTORS = [
     MNDExtractor(),
     PennyMacExtractor(),
     CitizensExtractor(),
+    WellsFargoExtractor(),
 ]
 
 TIER2_EXTRACTORS = [
     BankOfAmericaExtractor(),
-    WellsFargoExtractor(),
     CitiExtractor(),
     NavyFederalExtractor(),
     SoFiExtractor(),
