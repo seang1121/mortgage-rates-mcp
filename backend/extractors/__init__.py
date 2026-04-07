@@ -24,7 +24,7 @@ from backend.extractors.rocket_mortgage import RocketMortgageExtractor
 from backend.extractors.pnc import PNCExtractor
 from backend.extractors.usaa import USAAExtractor
 from backend.extractors.flagstar import FlagstarExtractor
-from backend.extractors.loandepot import LoanDepotExtractor
+# LoanDepot dropped — reCAPTCHA v3 blocks automation, no alternative source for live rates
 
 
 TIER1_EXTRACTORS = [
@@ -34,7 +34,6 @@ TIER1_EXTRACTORS = [
     CitizensExtractor(),
     WellsFargoExtractor(),
     FlagstarExtractor(),      # via WalletHub JSON
-    LoanDepotExtractor(),     # via Scully pre-rendered pages
     USAAExtractor(),          # via NerdWallet/Bankrate (HTTP first, browser fallback)
 ]
 

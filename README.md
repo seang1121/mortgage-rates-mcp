@@ -1,26 +1,42 @@
-# Mortgage Rates MCP Server
+# 🏠 Mortgage Rates MCP Server
 
-> Compare mortgage rates across **19 major US lenders** and **2 national benchmarks** through any AI assistant. 12 tools for real-time rates, comparison, calculation, recommendations, and alerts. Built for realtors, mortgage brokers, and homebuyers.
+### The first AI-native mortgage rate comparison tool. 18 major lenders. 12 powerful tools. One command.
 
-![Python](https://img.shields.io/badge/python-3.10+-blue)
-![Lenders](https://img.shields.io/badge/lenders-19-brightgreen)
-![Tools](https://img.shields.io/badge/MCP_tools-12-blue)
-![Schedule](https://img.shields.io/badge/updates-7am_%26_7pm_EST-orange)
-![License](https://img.shields.io/badge/license-MIT-green)
+> **"What's the best 30-year rate right now?"** — Ask your AI assistant and get a real answer, backed by live data from the biggest lenders in America.
+
+![Python](https://img.shields.io/badge/python-3.10+-blue?style=flat-square)
+![Lenders](https://img.shields.io/badge/lenders-18-brightgreen?style=flat-square)
+![Tools](https://img.shields.io/badge/MCP_tools-12-blue?style=flat-square)
+![Updates](https://img.shields.io/badge/updates-7am_%26_7pm_EST-orange?style=flat-square)
+![Free](https://img.shields.io/badge/price-free-success?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
 ---
 
-## Quick Start
+## 🚀 Why This Exists
 
-### For AI Users (Claude, ChatGPT, Cursor, Windsurf, VS Code)
+Shopping for a mortgage sucks. You open 15 bank websites, enter your info on each one, wait for JavaScript to load, compare numbers in a spreadsheet, and do it all again tomorrow because rates changed.
+
+**We fixed that.**
+
+This MCP server scrapes live rates from 18 of the largest mortgage lenders in the US — twice daily at 7am and 7pm EST — and serves them through any AI assistant. Ask Claude, ChatGPT, Cursor, or any MCP-compatible client for rates, and get an instant, accurate answer.
+
+No lead generation. No affiliate links. No selling your data. Just rates.
+
+---
+
+## ⚡ Quick Start
 
 ```bash
 pip install mortgage-rates-mcp
 ```
 
-Add to your MCP client config:
+Then add it to your AI client:
 
-**Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
+<details>
+<summary>🟣 Claude Desktop</summary>
+
+Edit `~/.config/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -34,8 +50,12 @@ Add to your MCP client config:
   }
 }
 ```
+</details>
 
-**ChatGPT Desktop** (MCP settings):
+<details>
+<summary>🟢 ChatGPT Desktop</summary>
+
+Add to MCP server settings:
 ```json
 {
   "mortgage-rates": {
@@ -47,8 +67,12 @@ Add to your MCP client config:
   }
 }
 ```
+</details>
 
-**Cursor** (`.cursor/mcp.json`):
+<details>
+<summary>🔵 Cursor / Windsurf / VS Code</summary>
+
+Add to `.cursor/mcp.json` (or equivalent):
 ```json
 {
   "mcpServers": {
@@ -62,110 +86,155 @@ Add to your MCP client config:
   }
 }
 ```
+</details>
 
-Then ask your AI: *"What are today's best mortgage rates?"*
-
----
-
-## 12 MCP Tools
-
-| Tool | What It Does |
-|------|-------------|
-| `get_rates` | All current rates grouped by product (30yr, 15yr, ARM, FHA, VA) |
-| `get_best_rate` | Single best rate for a loan type across all lenders |
-| `compare_lenders` | Side-by-side: "Compare Chase vs Wells Fargo vs Navy Federal" |
-| `get_rate_history` | 90-day trend with AM/PM tracking and direction indicator |
-| `get_lender_details` | All products from one specific lender |
-| `get_system_status` | Health check — last scrape time, lender count, uptime |
-| `calculate_payment` | Monthly P&I, total interest, full breakdown |
-| `generate_rate_sheet` | Client-ready PNG rate card image for texting to buyers |
-| `set_rate_alert` | Get notified when rates drop below your target |
-| `compare_scenarios` | 30yr vs 15yr vs ARM with breakeven analysis |
-| `estimate_savings` | "Switching from Chase to Navy Federal saves you $141/month" |
-| `get_recommendation` | AI-ranked top 5 picks with explanations based on your profile |
+Then just ask: *"What are today's best mortgage rates?"*
 
 ---
 
-## 19 Lenders + 2 Benchmarks
+## 🛠️ 12 Tools — Everything a Broker Needs
 
-### Tier 1 — Direct API (instant, most reliable)
-| Lender | Data Source |
-|--------|-----------|
-| Freddie Mac (benchmark) | Weekly PMMS CSV |
-| Mortgage News Daily (benchmark) | Real-time HTML |
+| Tool | What You Can Ask |
+|------|-----------------|
+| 🏷️ `get_rates` | *"Show me all current rates"* |
+| 🏆 `get_best_rate` | *"What's the best 30-year fixed right now?"* |
+| ⚖️ `compare_lenders` | *"Compare Chase vs Wells Fargo vs Navy Federal"* |
+| 📈 `get_rate_history` | *"How have rates moved this month?"* |
+| 🏦 `get_lender_details` | *"What does PennyMac offer?"* |
+| 💚 `get_system_status` | *"Is the system healthy?"* |
+| 🧮 `calculate_payment` | *"Monthly payment on a $400K home, 20% down?"* |
+| 🖼️ `generate_rate_sheet` | *"Make me a rate card I can text to my buyer"* |
+| 🔔 `set_rate_alert` | *"Alert me when 30yr drops below 6%"* |
+| 📊 `compare_scenarios` | *"30yr vs 15yr vs ARM — which is better?"* |
+| 💰 `estimate_savings` | *"How much would I save switching from Chase to Navy Federal?"* |
+| 🎯 `get_recommendation` | *"Best options for a $400K home with 750 credit?"* |
+
+---
+
+## 🏦 18 Lenders + 2 National Benchmarks
+
+We don't just aggregate — we go directly to each lender's source.
+
+### 📡 Direct API Access (instant, most reliable)
+| Lender | How We Get Data |
+|--------|----------------|
+| Freddie Mac | Weekly PMMS survey (national benchmark) |
+| Mortgage News Daily | Real-time daily index (benchmark) |
 | PennyMac | Public REST JSON API |
 | Citizens Bank | Static JSON rate file |
+| Wells Fargo | Internal rates API (discovered endpoint) |
+| Flagstar Bank | WalletHub structured data |
 
-### Tier 2 — Stealth Browser (reliable)
-Bank of America, Wells Fargo, Citi, Navy Federal CU, SoFi, US Bank, Guaranteed Rate, Truist, Mr. Cooper
-
-### Tier 3 — Stealth Browser (heavy anti-bot)
-Chase (Akamai), Rocket Mortgage (Akamai), PNC (Akamai), USAA (Akamai), Flagstar (Cloudflare), LoanDepot (reCAPTCHA)
-
----
-
-## Rate Schedule
-
-Rates are scraped twice daily:
-- **7:00 AM EST** — captures overnight changes
-- **7:00 PM EST** — captures intraday movement
-
-Both AM and PM data points are stored for trend analysis.
-
----
-
-## Data Accuracy
-
-Every scraped rate passes through a validation pipeline:
-1. **Sanity bounds** — reject rates outside 2.5%–14.0%
-2. **Benchmark cross-reference** — flag if >1.5% from national average
-3. **APR validation** — APR must be >= base rate
-4. **Product consistency** — 30yr must be > 15yr for same lender
-5. **Staleness detection** — flag unchanged rates after 5+ scrapes
-
-Failed lenders serve the last known good rate with a `stale` flag and timestamp.
+### 🌐 Stealth Browser Scraping
+| Lender | Protection Level |
+|--------|-----------------|
+| Bank of America | Easy |
+| Citi | Easy |
+| Navy Federal CU | Easy |
+| SoFi | Easy |
+| US Bank | Easy |
+| Guaranteed Rate | Easy |
+| Truist | Easy |
+| Mr. Cooper | Easy |
+| Chase | Akamai (bypassed via AEM endpoint) |
+| Rocket Mortgage | Akamai (bypassed via SSR extraction) |
+| PNC | Akamai (work in progress) |
+| USAA | Via third-party aggregator |
 
 ---
 
-## Self-Hosting the Backend
+## 🎯 Built for Realtors & Brokers
+
+This isn't a developer toy. It's a tool that puts **real money-saving intelligence** in the hands of mortgage professionals:
+
+- 📱 **Text-ready rate cards** — Generate a PNG rate comparison your client can read on their phone
+- 💵 **Real dollar amounts** — "Navy Federal saves your client $141/month compared to Chase"
+- 📉 **Trend tracking** — "Rates dropped 0.12% this week across all lenders"
+- 🔔 **Rate alerts** — Get notified the moment rates cross your target threshold
+- 🤖 **AI-powered recommendations** — "Based on your client's profile, here are the top 3 options and why"
+
+---
+
+## 🔒 Data Accuracy & Trust
+
+Your clients are making the biggest financial decision of their lives. Our data has to be right.
+
+| Check | What It Does |
+|-------|-------------|
+| ✅ Sanity bounds | Reject any rate outside 2.5%–14.0% |
+| ✅ APR validation | APR must be ≥ base rate (catches extraction errors) |
+| ✅ Benchmark cross-reference | Flag rates >1.5% from national average |
+| ✅ Product consistency | 30yr must be > 15yr for same lender |
+| ✅ Staleness detection | Flag unchanged rates after 5+ consecutive scrapes |
+| ✅ Screenshot on failure | Capture failed pages for debugging |
+| ✅ Last-known-good fallback | Serve stale data with clear timestamp when lender fails |
+
+Every response includes a compliance disclaimer. See [DISCLAIMER.md](DISCLAIMER.md) for TILA/RESPA details.
+
+---
+
+## 🆓 Free & Open
+
+- **Free API access** — no rate limits, no credit card required
+- **Open source** — MIT licensed, inspect every line
+- **No affiliate links** — we don't sell leads or earn commissions
+- **No data selling** — your queries are your business
+
+Get your API key instantly:
+```bash
+curl -X POST https://your-api-url.com/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "you@example.com", "password": "your_password"}'
+```
+
+---
+
+## 🏗️ Self-Hosting
+
+Run your own instance:
 
 ```bash
 git clone https://github.com/seang1121/mortgage-rates-mcp.git
 cd mortgage-rates-mcp
 pip install -r requirements.txt
 python -m patchright install chromium
-cp .env.example .env  # edit with your settings
+cp .env.example .env
 python scripts/create_database.py
 python scripts/create_admin.py
 python backend/app.py
 ```
 
-The API runs on port 5001 by default.
+Runs on port 5001. Scheduler starts automatically — rates scraped at 7am and 7pm EST.
 
 ---
 
-## API Registration
+## 📊 How We Compare
 
-Get a free API key:
-
-```bash
-curl -X POST http://localhost:5001/api/v1/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "you@example.com", "password": "your_password"}'
-```
-
-Returns your `mort_*` API key. Currently **free with unlimited access**.
+| Feature | This Server | RateAPI | Bankrate | NerdWallet |
+|---------|------------|---------|----------|------------|
+| **Lender types** | Banks + online + CU | Credit unions only | Paid listings | Paid listings |
+| **Revenue model** | Free / open source | API subscriptions | Affiliate / lead gen | Affiliate / lead gen |
+| **AI-native (MCP)** | ✅ 12 tools | ✅ 5 tools | ❌ | ❌ |
+| **Rate history** | ✅ 90 days, AM/PM | ❌ | ❌ | ❌ |
+| **Rate alerts** | ✅ Discord + email | Pro only ($49/mo) | ❌ | ❌ |
+| **Payment calculator** | ✅ Built-in | ❌ | Separate tool | Separate tool |
+| **Scenario comparison** | ✅ With breakeven | ❌ | ❌ | ❌ |
+| **Rate sheet images** | ✅ Text-ready PNG | ❌ | ❌ | ❌ |
+| **AI recommendations** | ✅ Ranked with explanations | ✅ Decisions API | ❌ | ❌ |
+| **Data neutrality** | ✅ No pay-to-rank | ✅ | ❌ Paid placement | ❌ Paid placement |
 
 ---
 
-## Disclaimer
+## ⚖️ Disclaimer
 
 Rates shown are publicly advertised rates scraped from lender websites and are **not personalized quotes**. Actual rates depend on credit score, loan amount, property type, down payment, and other factors. This is not financial advice. Contact lenders directly for official quotes.
 
-See [DISCLAIMER.md](DISCLAIMER.md) for full legal details including TILA/RESPA compliance.
+See [DISCLAIMER.md](DISCLAIMER.md) for full legal details.
 
 ---
 
-## License
+## 📄 License
 
-MIT License. See [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE).
+
+Built by [seang1121](https://github.com/seang1121).
