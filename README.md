@@ -1,11 +1,11 @@
 # 🏠 Mortgage Rates MCP Server
 
-### The first AI-native mortgage rate comparison tool. 18 major lenders. 12 powerful tools. One command.
+### The first AI-native mortgage rate comparison tool. 17 major lenders. 12 powerful tools. One command.
 
 > **"What's the best 30-year rate right now?"** — Ask your AI assistant and get a real answer, backed by live data from the biggest lenders in America.
 
 ![Python](https://img.shields.io/badge/python-3.10+-blue?style=flat-square)
-![Lenders](https://img.shields.io/badge/lenders-18-brightgreen?style=flat-square)
+![Lenders](https://img.shields.io/badge/lenders-17-brightgreen?style=flat-square)
 ![Tools](https://img.shields.io/badge/MCP_tools-12-blue?style=flat-square)
 ![Updates](https://img.shields.io/badge/updates-7am_%26_7pm_EST-orange?style=flat-square)
 ![Free](https://img.shields.io/badge/price-free-success?style=flat-square)
@@ -111,35 +111,85 @@ Then just ask: *"What are today's best mortgage rates?"*
 
 ---
 
-## 🏦 18 Lenders + 2 National Benchmarks
+## 💬 Example Outputs
+
+Here's what you get when you ask your AI assistant about mortgage rates:
+
+### 🏆 "What's the best 30-year rate?"
+```
+30-Year Fixed: PennyMac at 5.625% (5.822% APR)
+```
+
+### ⚖️ "Compare Wells Fargo, PNC, and PennyMac"
+```
+PNC:         6.375% (6.425% APR)
+Wells Fargo: 6.375% (6.529% APR)
+PennyMac:    5.625% (5.822% APR)  ← BEST
+```
+
+### 🧮 "What's the monthly payment on a $450K home with 20% down?"
+```
+Home price:     $450,000
+Down payment:   $90,000 (20%)
+Loan amount:    $360,000
+Rate:           6.375%
+Monthly P&I:    $2,245.93
+Total interest: $448,535
+Total cost:     $808,535
+```
+
+### 🎯 "Best options for a $450K home with 740 credit?"
+```
+#1 PennyMac — VA 30-Year Fixed at 5.375%
+   $2,015.90/mo | Lower than national average
+
+#2 Wells Fargo — 15-Year Fixed at 5.500%
+   $2,941.50/mo | 0.270% below average, very low fees
+
+#3 PNC — 15-Year Fixed at 5.625%
+   $2,965.43/mo | 0.145% below average, tight APR spread
+```
+
+### 💰 "How much would I save switching from PNC to PennyMac?"
+```
+PNC:     6.375% ($2,245.93/mo)
+PennyMac: 5.625% ($2,072.36/mo)
+
+Monthly savings:  $173.57
+Annual savings:   $2,083
+Total savings:    $62,485 over 30 years
+```
+
+---
+
+## 🏦 17 Lenders + 2 National Benchmarks
 
 We don't just aggregate — we go directly to each lender's source.
 
 ### 📡 Direct API Access (instant, most reliable)
 | Lender | How We Get Data |
 |--------|----------------|
-| Freddie Mac | Weekly PMMS survey (national benchmark) |
-| Mortgage News Daily | Real-time daily index (benchmark) |
-| PennyMac | Public REST JSON API |
-| Citizens Bank | Static JSON rate file |
-| Wells Fargo | Internal rates API (discovered endpoint) |
-| Flagstar Bank | WalletHub structured data |
+| 🏛️ Freddie Mac | Weekly PMMS survey (national benchmark) |
+| 📰 Mortgage News Daily | Real-time daily index (benchmark) |
+| 🏦 Wells Fargo | Hidden internal JSON API |
+| 🏦 PNC | MortgageHog Next.js JSON API |
+| 🏦 PennyMac | Public REST JSON API |
+| 🏦 Citizens Bank | Static JSON rate file |
+| 🏦 Flagstar Bank | WalletHub structured data |
 
 ### 🌐 Stealth Browser Scraping
 | Lender | Protection Level |
 |--------|-----------------|
-| Bank of America | Easy |
-| Citi | Easy |
-| Navy Federal CU | Easy |
-| SoFi | Easy |
-| US Bank | Easy |
-| Guaranteed Rate | Easy |
-| Truist | Easy |
-| Mr. Cooper | Easy |
-| Chase | Akamai (bypassed via AEM endpoint) |
-| Rocket Mortgage | Akamai (bypassed via SSR extraction) |
-| PNC | Akamai (work in progress) |
-| USAA | Via third-party aggregator |
+| 🏦 Bank of America | ✅ Easy |
+| 🏦 Citi | ✅ Easy |
+| 🏦 Navy Federal CU | ✅ Easy |
+| 🏦 SoFi | ✅ Easy |
+| 🏦 US Bank | ✅ Easy |
+| 🏦 Guaranteed Rate | ✅ Easy |
+| 🏦 Truist | ✅ Easy |
+| 🏦 Mr. Cooper | ✅ Easy |
+| 🏦 Chase | ⚡ Akamai (bypassed via AEM endpoint) |
+| 🏦 Rocket Mortgage | ⚡ Akamai (bypassed via SSR extraction) |
 
 ---
 
