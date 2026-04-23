@@ -286,5 +286,3 @@ See [DISCLAIMER.md](DISCLAIMER.md) for full legal details.
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE).
-
-Built by [seang1121](https://github.com/seang1121).

@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-04-06-mortgage-rates-mcp-design.md`
 
-**Existing scraper reference:** `C:\Users\seang1121\.openclaw\workspace\Multi-Lender-Mortgage-Rate-Lookup\mortgage_rate_report.py`
+**Existing scraper reference:** `~/.openclaw\workspace\Multi-Lender-Mortgage-Rate-Lookup\mortgage_rate_report.py`
 
 ---
 
@@ -388,7 +388,7 @@ for t in tables:
 
 - [ ] **Step 3: Test database creation**
 
-Run: `cd C:\Users\seang1121\mortgage-rates-mcp && python scripts/create_database.py`
+Run: `cd ~/mortgage-rates-mcp && python scripts/create_database.py`
 
 Expected: prints DB path and lists all 7 tables.
 
@@ -1845,7 +1845,7 @@ Full code for this file — implement all routes using `db.query()` for reads an
 - [ ] **Step 2: Test basic startup**
 
 ```bash
-cd C:\Users\seang1121\mortgage-rates-mcp
+cd ~/mortgage-rates-mcp
 FLASK_SECRET_KEY=test python -c "
 from backend.app import app
 print('App created, routes:')
@@ -2514,7 +2514,7 @@ Expected: populated rates from all successful lenders.
 - [ ] **Step 10: Create GitHub repo and push**
 
 ```bash
-cd C:\Users\seang1121\mortgage-rates-mcp
+cd ~/mortgage-rates-mcp
 gh repo create seang1121/mortgage-rates-mcp --public --source=. --push
 ```
 

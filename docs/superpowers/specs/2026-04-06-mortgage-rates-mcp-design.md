@@ -431,7 +431,7 @@ Content:
 - CLI script `create_admin.py` for initial admin account setup
 - `/register` endpoint — email + password, instant account creation, API key generated on signup
 - No invite codes, no approval gates
-- Admin role for Sean — unlimited requests, manual scrape triggers
+- Admin role for owner — unlimited requests, manual scrape triggers
 
 ---
 
