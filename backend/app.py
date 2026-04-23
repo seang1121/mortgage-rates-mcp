@@ -32,7 +32,8 @@ START_TIME = datetime.now()
 def require_api_key():
     """Require mort_* API key on all routes except health and register."""
     # Public endpoints — no auth needed
-    public_paths = ['/api/v1/health', '/api/v1/register', '/api/v1/rates/best',
+    public_paths = ['/api/v1/health', '/api/v1/health/scrape',
+                    '/api/v1/register', '/api/v1/rates/best',
                     '/llms.txt', '/favicon.ico', '/']
     if request.path in public_paths:
         return None
@@ -126,9 +127,68 @@ def health():
     })
 
 
+@app.route('/api/v1/health/scrape')
+def scrape_health():
+    """Scrape-freshness probe — public, suitable for uptime monitors.
+
+    Returns 200 if last scrape < 24h old, 503 if stale. Alert on 503.
+    """
+    row = db.query("SELECT MAX(scraped_at) as last FROM rates")
+    last_raw = row[0]['last'] if row and row[0] else None
+
+    if not last_raw:
+        return jsonify({
+            'status': 'critical',
+            'last_scrape': None,
+            'age_hours': None,
+            'message': 'No scrapes on record — scheduler never ran.',
+        }), 503
+
+    try:
+        last_dt = datetime.fromisoformat(last_raw)
+    except ValueError:
+        last_dt = datetime.strptime(last_raw, '%Y-%m-%d %H:%M:%S')
+
+    age_hours = round((datetime.now() - last_dt).total_seconds() / 3600, 1)
+    # Expect two scrapes per day (7am + 7pm). > 18h means we missed one.
+    is_stale = age_hours > 18
+
+    body = {
+        'status': 'stale' if is_stale else 'fresh',
+        'last_scrape': last_raw,
+        'age_hours': age_hours,
+        'threshold_hours': 18,
+    }
+    return jsonify(body), (503 if is_stale else 200)
+
+
+_register_attempts: dict[str, list[float]] = {}
+_REGISTER_LIMIT = 5           # max attempts
+_REGISTER_WINDOW = 3600       # per hour, per IP
+
+
+def _rate_limit_register(ip: str) -> bool:
+    """True if request is within quota. Sliding-window, in-memory."""
+    import time as _t
+    now = _t.time()
+    attempts = [t for t in _register_attempts.get(ip, []) if now - t < _REGISTER_WINDOW]
+    if len(attempts) >= _REGISTER_LIMIT:
+        _register_attempts[ip] = attempts
+        return False
+    attempts.append(now)
+    _register_attempts[ip] = attempts
+    return True
+
+
 @app.route('/api/v1/register', methods=['POST'])
 def register():
     """Open registration — anyone can sign up and get a mort_* API key."""
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+    if not _rate_limit_register(ip):
+        return jsonify({
+            'error': f'Too many registration attempts. Limit: {_REGISTER_LIMIT} per hour per IP.',
+        }), 429
+
     data = request.get_json(force=True) or {}
     email = (data.get('email') or '').strip()
     password = (data.get('password') or '').strip()

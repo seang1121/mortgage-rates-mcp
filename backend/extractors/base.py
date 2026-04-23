@@ -64,20 +64,22 @@ class BaseLenderExtractor:
         'VA_30yr': r'VA\s*30[- ]?[Yy]ear',
     }
 
-    # Rate+APR extraction patterns (tried in order, first match wins)
+    # Rate+APR extraction patterns (tried in order, first match wins).
+    # Length-bounded (.{0,N}?) instead of unbounded (.*?) to prevent matches
+    # from walking across product labels and grabbing the wrong product's rate.
     RATE_PATTERNS = [
         # "30-Year Fixed ... 6.500% ... APR: 6.738%"
-        r'{label}.*?(\d\.\d{{2,3}})%.*?(?:APR|apr)[:\s]*(\d\.\d{{2,3}})%',
+        r'{label}.{{0,200}}?(\d\.\d{{2,3}})%.{{0,100}}?(?:APR|apr)[:\s]*(\d\.\d{{2,3}})%',
         # "30-Year Fixed    6.500%    6.738%"  (tab/space separated)
         r'{label}[\t\s]+(\d\.\d{{2,3}})%[\t\s]+(\d\.\d{{2,3}})%',
         # "30-Year Fixed is 6.500% (6.738% APR)"
-        r'{label}.*?is\s+(\d\.\d{{2,3}})%\s*\((\d\.\d{{2,3}})%\s*APR\)',
+        r'{label}.{{0,100}}?is\s+(\d\.\d{{2,3}})%\s*\((\d\.\d{{2,3}})%\s*APR\)',
         # "30-Year Fixed ... Rate ... 6.500% ... APR ... 6.738%" (Mr. Cooper style)
-        r'{label}.*?Rate.*?(\d\.\d{{2,3}})%.*?APR.*?(\d\.\d{{2,3}})%',
+        r'{label}.{{0,200}}?Rate.{{0,50}}?(\d\.\d{{2,3}})%.{{0,50}}?APR.{{0,50}}?(\d\.\d{{2,3}})%',
     ]
 
-    # Rate-only fallback (no APR captured)
-    RATE_ONLY_PATTERN = r'{label}[^\d]*?(\d\.\d{{2,3}})%'
+    # Rate-only fallback (no APR captured) — bounded for same reason
+    RATE_ONLY_PATTERN = r'{label}[^\d]{{0,150}}?(\d\.\d{{2,3}})%'
 
     # ── Extraction ──────────────────────────────────────────────────
 
@@ -136,20 +138,19 @@ class BaseLenderExtractor:
         Override for lenders that need custom interaction (form fill,
         button clicks, CDP fallback, etc.).
         """
+        from backend.stealth import build_context_options, human_delay, simulate_human
+
         ctx = None
         try:
-            ctx = await browser.new_context(
-                viewport={"width": 1920, "height": 1080},
-                user_agent=(
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/133.0.0.0 Safari/537.36"
-                ),
-                locale="en-US",
-            )
+            ctx = await browser.new_context(**build_context_options())
             page = await ctx.new_page()
+
+            await human_delay(300, 1200)
             await page.goto(self.url, timeout=25000, wait_until="domcontentloaded")
             await page.wait_for_timeout(self.wait_ms)
+
+            # Inject human-like behavior before extraction
+            await simulate_human(page)
 
             # Auto-detect and fill ZIP code fields
             await self._try_zip_input(page, zip_code)
@@ -163,7 +164,7 @@ class BaseLenderExtractor:
                     await ctx.close()
                 except Exception:
                     pass
-            return []
+            raise
 
     async def _try_zip_input(self, page, zip_code: str):
         """Auto-detect ZIP code input fields and fill + submit them."""

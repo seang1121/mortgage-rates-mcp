@@ -35,19 +35,16 @@ class RocketMortgageExtractor(BaseLenderExtractor):
 
     async def scrape(self, browser, zip_code: str) -> list[RateResult]:
         """Extract rates from SSR HTML using data-ssr attributes."""
+        from backend.stealth import build_context_options, human_delay, simulate_human
+
         try:
-            ctx = await browser.new_context(
-                viewport={"width": 1920, "height": 1080},
-                user_agent=(
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-                locale="en-US",
-            )
+            ctx = await browser.new_context(**build_context_options())
             page = await ctx.new_page()
+
+            await human_delay(300, 1000)
             await page.goto(self.url, timeout=25000, wait_until="domcontentloaded")
             await page.wait_for_timeout(self.wait_ms)
+            await simulate_human(page)
 
             # Try DOM-based extraction first (most reliable)
             results = await self._extract_from_dom(page)

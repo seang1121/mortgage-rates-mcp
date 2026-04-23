@@ -30,6 +30,9 @@ class Database:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         conn.execute("PRAGMA busy_timeout=5000")
+        # Auto-truncate WAL every ~1000 pages to prevent unbounded growth
+        # if the app crashes mid-scrape.
+        conn.execute("PRAGMA wal_autocheckpoint=1000")
         return conn
 
     def query(self, sql, params=None):

@@ -14,6 +14,8 @@ def _scrape_job():
     """Run scrape and check alerts post-scrape."""
     from backend.scraper import run_scrape
 
+    # Jitter removed — was time.sleep() in the APScheduler worker, which
+    # could collide with misfire_grace_time=600 and cause skipped runs.
     print(f"[SCHEDULER] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — Starting scheduled scrape")
     try:
         result = run_scrape()

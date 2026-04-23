@@ -11,6 +11,7 @@ Execution flow:
 """
 import asyncio
 import os
+import random
 import secrets
 from datetime import datetime
 
@@ -102,6 +103,7 @@ async def _async_scrape(zip_code: str) -> dict:
             print(f"[SCRAPER] Retrying {len(all_failed)} failed: {', '.join(e.name for e in all_failed)}")
             for extractor in all_failed:
                 retried = False
+                last_error = None
                 for attempt in range(MAX_RETRIES):
                     wait = WAIT_SCHEDULE[min(attempt, len(WAIT_SCHEDULE) - 1)]
                     extractor.wait_ms = wait
@@ -124,8 +126,9 @@ async def _async_scrape(zip_code: str) -> dict:
                 if not retried:
                     # Final failure — take screenshot for debugging
                     screenshot_path = await _take_screenshot(browser, extractor, zip_code)
+                    err_detail = last_error[:200] if last_error else 'unknown'
                     _log_scrape(session_id, extractor.name, "failed", 0, 0,
-                                f"All retries exhausted. Last error: {last_error[:200] if 'last_error' in dir() else 'unknown'}",
+                                f"All retries exhausted. Last error: {err_detail}",
                                 screenshot_path)
                     print(f"  [{extractor.name}] FAILED after {MAX_RETRIES} retries")
 
@@ -195,6 +198,9 @@ async def _scrape_tier(browser, extractors, batch_size, zip_code, session_id,
         batch_num = (batch_start // batch_size) + 1
         print(f"  Batch {batch_num}: {', '.join(e.name for e in batch)}")
 
+        # Stagger batch starts to avoid simultaneous connections from one IP
+        await asyncio.sleep(random.uniform(1.0, 4.0))
+
         tasks = [_scrape_one(extractor, browser, zip_code, session_id) for extractor in batch]
         results = await asyncio.gather(*tasks)
 
@@ -217,8 +223,14 @@ async def _scrape_one(extractor, browser, zip_code, session_id) -> tuple[list[Ra
     try:
         rates = await extractor.scrape(browser, zip_code)
         duration = int((datetime.now() - start).total_seconds() * 1000)
-        status = "success" if rates else "failed"
-        _log_scrape(session_id, extractor.name, status, len(rates), duration)
+        if rates:
+            _log_scrape(session_id, extractor.name, "success", len(rates), duration)
+        else:
+            # Page loaded OK but no rates extracted — likely selector/regex miss
+            # rather than anti-bot. Record this explicitly so we can tell the
+            # difference from a thrown exception.
+            _log_scrape(session_id, extractor.name, "failed", 0, duration,
+                        "No rates extracted — page loaded but regex/selectors matched nothing")
         return rates, duration
     except Exception as e:
         duration = int((datetime.now() - start).total_seconds() * 1000)
@@ -227,19 +239,26 @@ async def _scrape_one(extractor, browser, zip_code, session_id) -> tuple[list[Ra
 
 
 async def _take_screenshot(browser, extractor, zip_code) -> str | None:
-    """Capture screenshot of failed lender page for debugging."""
+    """Capture screenshot of failed lender page for debugging.
+
+    Uses the same stealth context config as the scrape attempt — otherwise
+    the anti-bot that blocked the original scrape would block this too.
+    """
+    from backend.stealth import build_context_options
+
     try:
         os.makedirs(SCREENSHOT_DIR, exist_ok=True)
-        ctx = await browser.new_context()
+        ctx = await browser.new_context(**build_context_options())
         page = await ctx.new_page()
         await page.goto(extractor.url, timeout=15000, wait_until="domcontentloaded")
         await page.wait_for_timeout(5000)
         filename = f"{extractor.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         path = os.path.join(SCREENSHOT_DIR, filename)
-        await page.screenshot(path=path)
+        await page.screenshot(path=path, full_page=True)
         await ctx.close()
         return path
-    except Exception:
+    except Exception as e:
+        print(f"[SCRAPER] Screenshot failed for {extractor.name}: {e}")
         return None
 
 
@@ -252,8 +271,9 @@ def _log_scrape(session_id, lender, status, rates_found, duration_ms, error=None
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (session_id, lender, status, rates_found, error, screenshot, duration_ms)
         )
-    except Exception:
-        pass  # don't let logging failures break the scrape
+    except Exception as e:
+        # Surface logger failures — silent pass previously hid DB corruption
+        print(f"[SCRAPER] WARN: scrape_logs insert failed for {lender}: {e}")
 
 
 def _store_rates(rates, zip_code, scraped_at, session_id, time_of_day):
@@ -262,6 +282,12 @@ def _store_rates(rates, zip_code, scraped_at, session_id, time_of_day):
     Uses atomic swap: insert new rates first, then delete old ones in same transaction.
     This prevents a zero-rate window where the API serves empty results mid-scrape.
     """
+    # Guard: if the run produced zero rates (total outage), keep serving the
+    # last scrape's rates. Fallbacks from rate_history will fill gaps.
+    if not rates:
+        print("[SCRAPER] WARN: zero validated rates — preserving previous rates table")
+        return
+
     today = datetime.now().strftime('%Y-%m-%d')
 
     with db.get_connection() as conn:
@@ -309,12 +335,14 @@ def _apply_fallbacks(failures, zip_code, scraped_at, session_id):
                 continue
             seen.add(key)
             try:
+                # INSERT OR IGNORE — prevents dupes if the lender briefly succeeded
+                # during retry before ending up classified as failed
                 db.execute(
-                    """INSERT INTO rates (lender, product, rate, apr, zip_code,
+                    """INSERT OR IGNORE INTO rates (lender, product, rate, apr, zip_code,
                        is_benchmark, stale, scraped_at, scrape_session)
                        VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?)""",
                     (r['lender'], r['product'], r['rate'], r['apr'],
                      zip_code, scraped_at, session_id)
                 )
-            except Exception:
-                pass
+            except Exception as fallback_err:
+                print(f"[SCRAPER] WARN: fallback insert failed for {lender}/{r['product']}: {fallback_err}")
