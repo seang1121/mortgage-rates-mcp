@@ -97,16 +97,33 @@ def cross_reference_benchmarks(rates: list[RateResult]) -> list[RateResult]:
 
 
 def check_staleness(lender: str, product: str, rate: float) -> bool:
-    """Check if this exact rate appeared in the last 5+ consecutive scrapes.
+    """Stale = lender's rate hasn't moved in 14+ scrapes (~7 days at 2x/day)
+    AND the Freddie Mac 30yr benchmark moved meaningfully in that window.
 
-    Returns True if potentially stale (lender may be serving cached data).
+    Markets routinely sit flat for many consecutive scrapes, so flatness alone
+    is not a stale signal — only flatness *while the market moved* is.
     """
+    HISTORY = 14
+    BENCHMARK_MOVE_THRESHOLD = 0.05  # percentage points
+
     rows = db.query(
         """SELECT rate FROM rate_history
            WHERE lender = ? AND product = ?
-           ORDER BY created_at DESC LIMIT 5""",
-        (lender, product)
+           ORDER BY created_at DESC LIMIT ?""",
+        (lender, product, HISTORY)
     )
-    if len(rows) >= 5 and all(abs(r['rate'] - rate) < 0.001 for r in rows):
-        return True
-    return False
+    if len(rows) < HISTORY:
+        return False
+    if not all(abs(r['rate'] - rate) < 0.001 for r in rows):
+        return False
+
+    bench = db.query(
+        """SELECT rate FROM rate_history
+           WHERE lender = 'Freddie Mac (natl avg)' AND product = '30yr'
+           ORDER BY created_at DESC LIMIT ?""",
+        (HISTORY,)
+    )
+    if len(bench) < 2:
+        return False
+    bench_range = max(b['rate'] for b in bench) - min(b['rate'] for b in bench)
+    return bench_range >= BENCHMARK_MOVE_THRESHOLD
