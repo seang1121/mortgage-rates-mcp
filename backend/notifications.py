@@ -105,12 +105,16 @@ def _format_alert(alert, matching_rates) -> str:
 
 
 def _send_discord(webhook_url: str, message: str):
-    """Send alert via Discord webhook."""
+    """Send alert via Discord webhook. Cloudflare in front of discord.com
+    rejects urllib's default User-Agent (error 1010), so we set one."""
     try:
         data = json.dumps({"content": f"```\n{message}\n```"}).encode()
         req = urllib.request.Request(
             webhook_url, data=data,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "mortgage-rates-mcp (+https://github.com/seang1121/mortgage-rates-mcp)",
+            },
             method="POST"
         )
         urllib.request.urlopen(req, timeout=10)

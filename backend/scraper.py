@@ -36,7 +36,29 @@ def run_scrape(zip_code: str = None) -> dict:
     This is the main entry point — called by the scheduler and the admin API.
     """
     zip_code = zip_code or os.getenv("DEFAULT_ZIP_CODE", "32224")
-    return asyncio.run(_async_scrape(zip_code))
+    summary = asyncio.run(_async_scrape(zip_code))
+    _notify_failures(summary)
+    return summary
+
+
+def _notify_failures(summary: dict) -> None:
+    """Post a Discord summary if any lenders failed. No-op without webhook."""
+    failures = summary.get("failures") or []
+    if not failures:
+        return
+    from backend.notifications import send_discord_alert
+
+    total = summary.get("total_rates", 0)
+    success_count = len(summary.get("successes") or [])
+    fail_count = len(failures)
+    when = summary.get("scraped_at", "")[:19].replace("T", " ")
+    severity = "🚨" if fail_count >= 3 else "⚠️"
+    msg = (
+        f"{severity} Mortgage scrape: {fail_count} failed, "
+        f"{success_count} ok, {total} rates stored — {when} EST\n"
+        f"Failed: {', '.join(failures)}"
+    )
+    send_discord_alert(msg)
 
 
 async def _async_scrape(zip_code: str) -> dict:
